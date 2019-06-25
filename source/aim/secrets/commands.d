@@ -167,7 +167,7 @@ struct Undefine
     @CommandPositionalArg(0, "Key", "The key/name of the definition to remove the value of.")
     string key;
 
-    @CommandNamedArg("-f|--def-file", "The definition file to modify. Defaults to the default definition file.")
+    @CommandNamedArg("f|def-file", "The definition file to modify. Defaults to the default definition file.")
     Nullable!string defFile;
 
     void onExecute()
