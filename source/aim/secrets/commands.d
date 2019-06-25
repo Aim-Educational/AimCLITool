@@ -85,7 +85,7 @@ struct Verify
         auto text = new HelpTextBuilderTechnical();
         text.addSection("Missing");
 
-        auto store = Common.createOrGetStoreFile();
+        auto store = SecretsStore.fromFile(STORE_FILE_LOCATION);
         foreach(defList; Common.readAllDefinitionFiles()
                                .map!(f => f.values.byKeyValue)
                                .filter!(kvrange => kvrange.any!(kv => (kv.key in store.values) is null))
@@ -121,7 +121,7 @@ struct SetValue
     void onExecute()
     {
         enforceDefinitionExists(this.key);
-        auto store = Common.createOrGetStoreFile();
+        auto store = SecretsStore.fromFile(STORE_FILE_LOCATION);
         store.values[this.key] = value;
         store.toFile(STORE_FILE_LOCATION);
     }
@@ -137,7 +137,7 @@ struct GetValue
     {
         enforceDefinitionExists(this.key);
 
-        auto store = Common.createOrGetStoreFile();
+        auto store = SecretsStore.fromFile(STORE_FILE_LOCATION);
         auto ptr   = (this.key in store.values);
 
         enforce(ptr !is null, "The definition '"~this.key~"' exists, but hasn't been given a value.");
@@ -155,7 +155,7 @@ struct RemoveValue
     {
         enforceDefinitionExists(this.key);
 
-        auto store = Common.createOrGetStoreFile();
+        auto store = SecretsStore.fromFile(STORE_FILE_LOCATION);
         store.values.remove(this.key);
         store.toFile(STORE_FILE_LOCATION);
     }

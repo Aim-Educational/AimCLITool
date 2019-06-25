@@ -4,7 +4,7 @@ private
 {
     import std.exception : enforce;
     import jaster.cli.core, jaster.cli.udas, jaster.cli.helptext;
-    import aim.secrets.data;
+    import aim.secrets.data, aim.common.data;
 }
 
 const CONFIG_FILE_LOCATION = ".aim/git_keep/secrets_config.json";
@@ -28,10 +28,10 @@ final static abstract class Common
             enforce(!path.exists, "The path '"~path~"' already exists.");
 
             SecretsDefinition def;
-            def.fileVersion = SecretsDefinition.Version.v1;
+            def.fileVersion = GenericFileVersion.v1;
             def.toFile(path);
 
-            Common.openConfigReadWrite((ref conf)
+            Common.openConfigSafeModify((ref conf)
             {
                 conf.definitionFiles ~= path.relativePath;
             });
@@ -44,51 +44,18 @@ final static abstract class Common
             import std.algorithm : map;
             import std.array     : array;
 
-            return Common.createOrGetConfigFile()
-                         .definitionFiles
-                         .map!(f => SecretsDefinition.fromFile(f))
-                         .array;
+            return SecretsConfig.createOrGetFromFile(CONFIG_FILE_LOCATION)
+                                .definitionFiles
+                                .map!(f => SecretsDefinition.fromFile(f))
+                                .array;
         }
 
-        SecretsStore createOrGetStoreFile()
-        {
-            import std.file : exists;
-
-            if(STORE_FILE_LOCATION.exists)
-                return SecretsStore.fromFile(STORE_FILE_LOCATION);
-
-            SecretsStore config;
-            config.fileVersion = SecretsStore.Version.v1;
-            config.toFile(STORE_FILE_LOCATION);
-
-            return config;
-        }
-
-        SecretsConfig createOrGetConfigFile()
-        {
-            import std.file : exists;
-
-            if(CONFIG_FILE_LOCATION.exists)
-                return SecretsConfig.fromFile(CONFIG_FILE_LOCATION);
-
-            SecretsConfig config;
-            config.fileVersion = SecretsConfig.Version.v1;
-            config.toFile(CONFIG_FILE_LOCATION);
-
-            return config;
-        }
-
-        SecretsConfig openConfigReadOnly()
-        {
-            return Common.createOrGetConfigFile();
-        }
-
-        void openConfigReadWrite(void delegate(ref SecretsConfig) operation)
+        void openConfigSafeModify(void delegate(ref SecretsConfig) operation)
         {
             if(Common._configRefCount == 0)
             {
                 Common._configRefCount++;
-                Common._configBeingModified = Common.createOrGetConfigFile();
+                Common._configBeingModified = SecretsConfig.createOrGetFromFile(CONFIG_FILE_LOCATION);
             }
             scope(exit)
             {
