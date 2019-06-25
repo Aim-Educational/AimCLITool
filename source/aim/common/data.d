@@ -11,15 +11,12 @@ enum GenericFileVersion
 }
 
 enum NO_PREVIOUS_VERSION{na};
-enum VERSIONED_DATA{na}; // A dummy field used as a way for identifying types that use this mixin.
 
 mixin template VersionedData(alias MyVersion, alias PreviousVersion)
 if(is(typeof(MyVersion) == enum)
 || is(typeof(PreviousVersion) == struct) || is(PreviousVersion == NO_PREVIOUS_VERSION)
 )
 {
-    VERSIONED_DATA __VERSIONED_DATA_IDENTIFIER;
-
     alias ThisType    = typeof(this);
     alias VersionEnum = typeof(MyVersion);
     alias ThisVersion = MyVersion;
