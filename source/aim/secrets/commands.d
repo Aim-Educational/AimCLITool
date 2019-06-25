@@ -14,7 +14,7 @@ private
 const DEF_FOLDER_PATH       = ".aim/git_keep/secrets/";
 const DEFAULT_DEF_FILE_PATH = DEF_FOLDER_PATH ~ "default.json";
 
-@Command("define", "Defines a new/existing definition into the specified (or default) definition file.")
+@Command("secrets define", "Defines a new/existing definition into the specified (or default) definition file.")
 struct Define
 {
     @CommandPositionalArg(0, "key", "The definition's key/name.")
@@ -56,7 +56,7 @@ struct Define
     }
 }
 
-@Command("list-defines", "List all definitions, excluding their values, from all known definition files.")
+@Command("secrets list-defines", "List all definitions, excluding their values, from all known definition files.")
 struct ListDefines
 {
     int onExecute()
@@ -74,7 +74,7 @@ struct ListDefines
     }
 }
 
-@Command("verify", "Verifies that all required definitions have been given values.")
+@Command("secrets verify", "Verifies that all required definitions have been given values.")
 struct Verify
 {
     int onExecute()
@@ -109,7 +109,7 @@ struct Verify
     }
 }
 
-@Command("set-value", "Sets the value for a defintion.")
+@Command("secrets set-value", "Sets the value for a defintion.")
 struct SetValue
 {
     @CommandPositionalArg(0, "Key", "The key/name of the definition to set the value of.")
@@ -120,19 +120,14 @@ struct SetValue
 
     void onExecute()
     {
-        import std.exception : enforce;
-
-        enforce(Common.doesDefinitionKeyExist(this.key),
-            "There is no definition called '"~this.key~"'"
-        );
-
+        enforceDefinitionExists(this.key);
         auto store = Common.createOrGetStoreFile();
         store.values[this.key] = value;
         store.toFile(STORE_FILE_LOCATION);
     }
 }
 
-@Command("get-value", "Gets the value for a definition.")
+@Command("secrets get-value", "Gets the value for a definition.")
 struct GetValue
 {
     @CommandPositionalArg(0, "Key", "The key/name of the definition to get the value of.")
@@ -140,11 +135,7 @@ struct GetValue
 
     void onExecute()
     {
-        import std.exception : enforce;
-
-        enforce(Common.doesDefinitionKeyExist(this.key),
-            "There is no definition called '"~this.key~"'"
-        );
+        enforceDefinitionExists(this.key);
 
         auto store = Common.createOrGetStoreFile();
         auto ptr   = (this.key in store.values);
@@ -152,4 +143,47 @@ struct GetValue
         enforce(ptr !is null, "The definition '"~this.key~"' exists, but hasn't been given a value.");
         writeln(*ptr);
     }
+}
+
+@Command("secrets remove-value", "Removes the value for a definition.")
+struct RemoveValue
+{
+    @CommandPositionalArg(0, "Key", "The key/name of the definition to remove the value of.")
+    string key;
+
+    void onExecute()
+    {
+        enforceDefinitionExists(this.key);
+
+        auto store = Common.createOrGetStoreFile();
+        store.values.remove(this.key);
+        store.toFile(STORE_FILE_LOCATION);
+    }
+}
+
+@Command("secrets undefine", "Undefined a currently defined definition.")
+struct Undefine
+{
+    @CommandPositionalArg(0, "Key", "The key/name of the definition to remove the value of.")
+    string key;
+
+    @CommandNamedArg("-f|--def-file", "The definition file to modify. Defaults to the default definition file.")
+    Nullable!string defFile;
+
+    void onExecute()
+    {
+        import std.exception : assumeUnique;
+
+        auto file = SecretsDefinition.fromFile(this.defFile.get(DEFAULT_DEF_FILE_PATH).assumeUnique);
+        file.values.remove(this.key);
+        file.toFile(this.defFile.get(DEFAULT_DEF_FILE_PATH).assumeUnique);
+    }
+}
+
+void enforceDefinitionExists(string key)
+{
+    import std.exception : enforce;
+    enforce(Common.doesDefinitionKeyExist(key),
+        "There is no definition called '"~key~"'"
+    );
 }
