@@ -1,4 +1,4 @@
-module tool.data;
+module aim.secrets.data;
 
 private
 {

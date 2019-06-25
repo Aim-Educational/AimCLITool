@@ -1,4 +1,4 @@
-module tool.commands;
+module aim.secrets.commands;
 
 private
 {
@@ -8,7 +8,7 @@ private
     import std.file      : exists;
     import std.path      : buildNormalizedPath;
     import jaster.cli.core, jaster.cli.udas, jaster.cli.helptext;
-    import tool.data, tool.common;
+    import aim.secrets.data, aim.secrets.common;
 }
 
 const DEF_FOLDER_PATH       = ".aim/git_keep/secrets/";

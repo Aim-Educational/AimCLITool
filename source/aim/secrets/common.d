@@ -1,10 +1,10 @@
-module tool.common;
+module aim.secrets.common;
 
 private
 {
     import std.exception : enforce;
     import jaster.cli.core, jaster.cli.udas, jaster.cli.helptext;
-    import tool.data;
+    import aim.secrets.data;
 }
 
 const CONFIG_FILE_LOCATION = ".aim/git_keep/secrets_config.json";

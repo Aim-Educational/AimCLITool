@@ -1,5 +1,5 @@
-name "aim_secrets"
-description "A minimal D application."
+name "aim"
+description "A CLI tool containing a collection of subtools for AIM."
 authors "Bradley Chatha"
 copyright "Copyright © 2019, Bradley Chatha"
 license "MIT"

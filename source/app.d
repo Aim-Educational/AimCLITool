@@ -1,5 +1,5 @@
 import jaster.cli.core;
-import tool.commands;
+import aim.secrets;
 
 int main(string[] args)
 {
@@ -9,7 +9,7 @@ int main(string[] args)
 		args = args[1..$];
 
 	auto core = new CommandLineInterface!(
-		tool.commands
+		aim.secrets.commands
 	);
 
 	return core.parseAndExecute(args);
