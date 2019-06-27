@@ -153,7 +153,8 @@ struct Publish
 
     void setupService()
     {
-        import std.algorithm : reduce, map;
+        import std.algorithm : reduce, map, splitter, filter;
+        import std.array     : array;
         import std.range     : chain;
         import std.file      : writeFile = write;
         import std.path      : buildNormalizedPath;
@@ -175,7 +176,14 @@ struct Publish
         }
         auto predefinedVars = 
         [
-            EnvVar()
+            EnvVar("ASPNETCORE_HTTPS_PORT", "443"),
+            EnvVar("AIMDEPLOY:DOMAIN",      config.domain),
+            EnvVar("AIMDEPLOY:GIT_TAG",     Shell.executeEnforceStatusZero("git tag")
+                                                 .output
+                                                 .splitter("\n")
+                                                 .filter!(c => c.length > 1)
+                                                 .array[$-1]
+            )
         ];
 
         version(linux)
