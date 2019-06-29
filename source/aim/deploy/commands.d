@@ -154,7 +154,7 @@ struct Publish
     void setupService()
     {
         import std.algorithm : reduce, map, splitter, filter;
-        import std.array     : array;
+        import std.array     : array, replace;
         import std.range     : chain;
         import std.file      : writeFile = write;
         import std.path      : buildNormalizedPath;
@@ -201,8 +201,8 @@ struct Publish
                         "$ENVIRONMENT_LIST": config.secretsToExpose
                                                    .map!(s => EnvVar(s, store.values[s]))
                                                    .chain(predefinedVars)
-                                                   .map!(v => "Environment='%s=%s'\n"
-                                                              .format(v.name, v.value)
+                                                   .map!(v => "Environment='%s=%s'"
+                                                              .format(v.name.replace(":", "__"), v.value)
                                                     )
                                                    .reduce!((s1, s2) => s1~"\n"~s2)
                     ],
