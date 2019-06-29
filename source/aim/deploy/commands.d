@@ -221,3 +221,45 @@ struct Publish
         return buildNormalizedPath("/etc/nginx/sites-available/", config.name);
     }
 }
+
+@Command("deploy set-name", "Sets the name of the project.")
+struct SetName
+{
+    @CommandPositionalArg(0, "Name", "The name to give the project.")
+    string name;
+
+    void onExecute()
+    {
+        auto conf = DeployConfig.createOrGetFromFile(DEPLOY_CONFIG_PATH);
+        conf.name = this.name;
+        conf.toFile(DEPLOY_CONFIG_PATH);
+    }
+}
+
+@Command("deploy set-domain", "Sets the domain of the project.")
+struct SetDomain
+{
+    @CommandPositionalArg(0, "domain", "The domain to give the project.")
+    string domain;
+
+    void onExecute()
+    {
+        auto conf = DeployConfig.createOrGetFromFile(DEPLOY_CONFIG_PATH);
+        conf.domain = this.domain;
+        conf.toFile(DEPLOY_CONFIG_PATH);
+    }
+}
+
+@Command("deploy set-port", "Sets the port of the project.")
+struct SetPort
+{
+    @CommandPositionalArg(0, "port", "The port to give the project.")
+    ushort port;
+
+    void onExecute()
+    {
+        auto conf = DeployConfig.createOrGetFromFile(DEPLOY_CONFIG_PATH);
+        conf.port = this.port;
+        conf.toFile(DEPLOY_CONFIG_PATH);
+    }
+}
