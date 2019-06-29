@@ -7,6 +7,6 @@ Write-Host "### NOTE: If it looks like compliation freezes, just wait. It's prob
 $CWD = $(Get-Location)
 $OutputFile = [System.IO.Path]::Combine($CWD, "bin", "aim")
 
-& dub build
+& dub build --compiler dmd -b release
 & rm "/usr/bin/aim"
 & ln $OutputFile "/usr/bin/aim"
