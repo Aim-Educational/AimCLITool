@@ -9,7 +9,7 @@ private
     immutable NGINX_SERVER_BLOCK_TEMPLATE = import("deploy/nginx_server_block.txt");
     immutable SYSTEMD_SERVICE_TEMPLATE    = import("deploy/systemd_service.txt");
 
-    immutable DOTNET_PUBLISH_DIR = ".aim/git_keep/deploy/build/";
+    immutable DOTNET_PUBLISH_DIR = ".aim/git_ignore/deploy/build/";
 }
 
 @Command("deploy expose", "'Exposes' a secret to the project during publishing.")
