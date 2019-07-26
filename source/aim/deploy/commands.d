@@ -71,6 +71,9 @@ struct Publish
         this.setupProxy();
         this.compile();
         this.setupService();
+
+        import std.stdio : writeln;
+        writeln("Success! Use systemctl to start the newly made service.");
     }
 
     void setupProxy()
