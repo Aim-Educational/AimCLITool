@@ -83,16 +83,19 @@ if(is(typeof(MyVersion) == enum)
 
 T genericFromFile(T)(string path)
 {
-    import std.file : readText;
+    import std.file  : readText;
+    import std.array : replace;
 
-    return path.readText().deserialize!T();
+    return path.replace('\\', '/').readText().deserialize!T();
 }
 
 void genericToFile(T)(string path, T value)
 {
-    import std.path : dirName;
-    import std.file : write, mkdirRecurse;
+    import std.path  : dirName;
+    import std.file  : write, mkdirRecurse;
+    import std.array : replace;
 
+    path = path.replace('\\', '/');
     path.dirName.mkdirRecurse();
     path.write(value.serializeToJsonPretty());
 }
