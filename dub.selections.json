@@ -2,6 +2,7 @@
 	"fileVersion": 1,
 	"versions": {
 		"asdf": "0.4.10",
-		"jcli": "0.1.0-beta.5"
+		"jcli": "0.1.0-beta.6",
+		"jioc": "0.1.0-beta.3"
 	}
 }

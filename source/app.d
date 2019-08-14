@@ -1,15 +1,20 @@
 import jaster.cli.core, jaster.cli.util;
 import std.algorithm : any;
-import aim.secrets, aim.deploy.commands;
+import aim.secrets, aim.common;
+import jaster.ioc.container;
 
 int main(string[] args)
 {
-	Shell.useVerboseOutput = true; // Until we have proper support for it.
+	auto provider = new ServiceProvider();
+	provider.configureServices((scope services)
+	{
+		services.cliConfigure!AimSecretsConfig(AimSecretsConfig.CONF_FILE);
+		services.cliConfigure!AimSecretsDefineValues(AimSecretsDefineValues.CONF_FILE);
+	});
 
 	auto core = new CommandLineInterface!(
-		aim.secrets.commands,
-		aim.deploy.commands
-	);
+		aim.secrets.commands
+	)(provider);
 
 	return core.parseAndExecute(args);
 }
