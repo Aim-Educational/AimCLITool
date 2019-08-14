@@ -16,9 +16,10 @@ abstract class BaseCommand
     @CommandNamedArg("v|verbose", "Show verbose output.")
     Nullable!bool verbose;
 
-    void onExecute()
+    int onExecute()
     {
         Shell.useVerboseOutput = this.verbose.get(false);
+        return 0;
     }
 }
 

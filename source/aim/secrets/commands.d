@@ -26,7 +26,7 @@ final class AimSecretsDefine : BaseCommand
         this._config = config;
     }
 
-    override void onExecute()
+    override int onExecute()
     {
         super.onExecute();
         Shell.verboseLogf("Name: %s\nDescription: %s\nIsOptional: %s", this.name, this.description, this.isOptional.get(false));
@@ -38,6 +38,8 @@ final class AimSecretsDefine : BaseCommand
             else
                 Shell.verboseLogf("Definition called '%s' already exists, skipping.", this.name);
         });
+
+        return 0;
     }
 }
 
@@ -60,7 +62,7 @@ final class AimSecretsSet : BaseCommand
         this._config = config;
     }
 
-    override void onExecute()
+    override int onExecute()
     {
         super.onExecute();
         Shell.verboseLogf("Name: %s\nValue: %s", this.name, this.value);
@@ -77,6 +79,8 @@ final class AimSecretsSet : BaseCommand
             else
                 values.values ~= AimSecretsDefineValues.Def(this.name, this.value);
         });
+
+        return 0;
     }
 }
 
@@ -96,7 +100,7 @@ final class AimSecretsGet : BaseCommand
         this._config = config;
     }
 
-    override void onExecute()
+    override int onExecute()
     {
         import std.exception : enforce;
         import std.algorithm : filter;
@@ -109,5 +113,49 @@ final class AimSecretsGet : BaseCommand
         enforce(!value.empty, "The secret '"~this.name~"' does not have a value.");
 
         writeln(value.front.value);
+        return 0;
+    }
+}
+
+@Command("secrets verify", "Verifies that all non-optional secrets have been given a value.")
+final class AimSecretsVerify : BaseCommand
+{
+    private IAimCliConfig!AimSecretsDefineValues _values;
+    private IAimCliConfig!AimSecretsConfig _config;
+
+    this(IAimCliConfig!AimSecretsDefineValues values, IAimCliConfig!AimSecretsConfig config)
+    {
+        assert(values !is null);
+        this._values = values;
+        this._config = config;
+    }
+
+    override int onExecute()
+    {
+        import std.algorithm : filter, any, map;
+        import std.stdio     : writeln;
+        import std.array     : array;
+        super.onExecute();
+
+        auto missing = this._config
+                           .value
+                           .definitions
+                           .filter!(d => !this._values.value.values.any!(v => v.name == d.name));    
+        auto argInfo = missing.map!(m => HelpSectionArgInfoContent.ArgInfo([m.name], m.description, cast(ArgIsOptional)m.isOptional));
+
+        auto text = new HelpTextBuilderTechnical();
+        text.addSection("Missing")
+            .addContent(new HelpSectionArgInfoContent(argInfo.array, AutoAddArgDashes.no));
+
+        if(!missing.empty)
+        {
+            writeln(text.toString());
+            return -2;
+        }
+        else
+        {
+            writeln("Verification successful.");
+            return 0;
+        }
     }
 }
