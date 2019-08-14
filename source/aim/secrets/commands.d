@@ -79,3 +79,35 @@ final class AimSecretsSet : BaseCommand
         });
     }
 }
+
+@Command("secrets get", "Gets the value of a secret.")
+final class AimSecretsGet : BaseCommand
+{
+    private IAimCliConfig!AimSecretsDefineValues _values;
+    private IAimCliConfig!AimSecretsConfig _config;
+
+    @CommandPositionalArg(0, "name", "The name of the secret to get the value of.")
+    string name;
+
+    this(IAimCliConfig!AimSecretsDefineValues values, IAimCliConfig!AimSecretsConfig config)
+    {
+        assert(values !is null);
+        this._values = values;
+        this._config = config;
+    }
+
+    override void onExecute()
+    {
+        import std.exception : enforce;
+        import std.algorithm : filter;
+        import std.stdio : writeln;
+
+        super.onExecute();
+        enforce(this._config.value.definitionExists(this.name), "The secret '"~this.name~"' is not defined.");
+
+        auto value = this._values.value.values.filter!(v => v.name == this.name);
+        enforce(!value.empty, "The secret '"~this.name~"' does not have a value.");
+
+        writeln(value.front.value);
+    }
+}
