@@ -43,6 +43,54 @@ final class AimSecretsDefine : BaseCommand
     }
 }
 
+@Command("secrets undefine", "Undefines an already defined secret.")
+final class AimSecretsUndefine : BaseCommand
+{
+    private IAimCliConfig!AimSecretsDefineValues _values;
+    private IAimCliConfig!AimSecretsConfig _config;
+
+    @CommandPositionalArg(0, "name", "The name of the secret to undefine.")
+    string name;
+
+    this(IAimCliConfig!AimSecretsDefineValues values, IAimCliConfig!AimSecretsConfig config)
+    {
+        assert(values !is null);
+        this._values = values;
+        this._config = config;
+    }
+
+    override int onExecute()
+    {
+        super.onExecute();
+
+        this._config.edit((scope ref config)
+        {
+            import std.algorithm : filter;
+            import std.array     : array;
+            
+            if(!config.definitionExists(this.name))
+            {
+                Shell.verboseLogf("Cannot undefine '%s' as it is not already defined.", this.name);
+                return;
+            }
+            else
+                Shell.verboseLogf("Undefining '%s'.", this.name);
+
+            config.definitions = config.definitions
+                                       .filter!(d => d.name != this.name)
+                                       .array;
+            
+            this._values.edit((scope ref values)
+            {
+                values.values = values.values
+                                      .filter!(v => v.name != this.name)
+                                      .array;
+            });
+        });
+        return 0;
+    }
+}
+
 @Command("secrets set", "Sets the value of a secret.")
 final class AimSecretsSet : BaseCommand
 {
