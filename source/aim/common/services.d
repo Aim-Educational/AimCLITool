@@ -37,7 +37,7 @@ final class AimCliConfig(alias ConfT) : IAimCliConfig!ConfT
     {
         import std.file : exists, mkdirRecurse, write;
         import std.path : dirName;
-        import asdf     : serializeToJson;
+        import asdf     : serializeToJsonPretty;
 
         editFunc(this._value);
 
@@ -48,7 +48,7 @@ final class AimCliConfig(alias ConfT) : IAimCliConfig!ConfT
         }
 
         Shell.verboseLogf("Saving %s to file: %s", __traits(identifier, ConfT), this._file);
-        write(this._file, this._value.serializeToJson());
+        write(this._file, this._value.serializeToJsonPretty());
     }
 
     @property

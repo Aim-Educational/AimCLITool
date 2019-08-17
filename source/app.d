@@ -10,6 +10,7 @@ int main(string[] args)
 	{
 		services.cliConfigure!AimSecretsConfig(AimSecretsConfig.CONF_FILE);
 		services.cliConfigure!AimSecretsDefineValues(AimSecretsDefineValues.CONF_FILE);
+		services.cliConfigure!AimDeployConfig(AimDeployConfig.CONF_FILE);
 		services.addSingleton!(IAimDeployPacker, AimDeployPacker);
 	});
 
