@@ -46,7 +46,7 @@ Build Release x86:
   artifacts:
       paths:
         - ./linux-x86/aim
-      expires_in: 10 mins
+      expire_in: 10 mins
 
 Build Release x64:
   stage: Build Release
@@ -59,7 +59,7 @@ Build Release x64:
   artifacts:
       paths:
         - ./linux-x64/aim
-      expires_in: 10 mins
+      expire_in: 10 mins
 
 Test x86:
   stage: Test
@@ -77,6 +77,8 @@ Test x64:
 
 Bundle:
   stage: Bundle
+  script:
+    - echo Hey
   artifacts:
     paths:
       - ./linux-x64/
