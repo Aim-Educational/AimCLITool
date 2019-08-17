@@ -83,3 +83,5 @@ Bundle:
     paths:
       - ./linux-x64/
       - ./linux-x86/
+  only:
+    - tags
