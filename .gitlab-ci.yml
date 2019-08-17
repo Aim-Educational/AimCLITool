@@ -17,6 +17,7 @@ stages:
   - Build Debug
   - Test
   - Build Release
+  - Bundle
 
 # Make sure the main build types (release, debug, and unittest) work for both architectures.
 # I've had issues in the past where some of my code won't compile in both (mostly forgetting to use size_t somewhere) which is why both are tested.
@@ -38,21 +39,27 @@ Build Release x86:
   stage: Build Release
   script:
       - dub build --build=release --arch=x86
+      - mkdir linux-x86
+      - cp ./bin/aim ./linux-x86/aim
   variables:
       BUILD_ARCH: "32"
   artifacts:
       paths:
-        - bin/aim
+        - ./linux-x86/aim
+      expires_in: 10 mins
 
 Build Release x64:
   stage: Build Release
   script:
       - dub build --build=release --arch=x86_64
+      - mkdir linux-x64
+      - cp ./bin/aim ./linux-x64/aim
   variables:
       BUILD_ARCH: "64"
   artifacts:
       paths:
-        - bin/aim
+        - ./linux-x64/aim
+      expires_in: 10 mins
 
 Test x86:
   stage: Test
@@ -67,3 +74,10 @@ Test x64:
       - dub test
   variables:
       BUILD_ARCH: "64"
+
+Bundle Artifacts:
+  stage: Bundle
+  artifacts:
+    paths:
+      - ./linux-x64/
+      - ./linux-x86/
