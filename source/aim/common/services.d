@@ -12,6 +12,11 @@ if(is(ConfT == struct))
     void edit(void delegate(scope ref ConfT));
 }
 
+interface IFileDownloader
+{
+    void downloadStreaming(string url, string outputFile);   
+}
+
 final class AimCliConfig(alias ConfT) : IAimCliConfig!ConfT
 {
     private ConfT _value;
@@ -66,4 +71,14 @@ void cliConfigure(alias ConfT)(ServiceCollection services, string confFile)
             conf.loadFromFile(confFile);
         }
     );
+}
+
+final class FileDownloader : IFileDownloader
+{
+    override void downloadStreaming(string url, string outputFile)
+    {
+        import vibe.inet.urltransfer : download;
+
+        download(url, outputFile);
+    }   
 }

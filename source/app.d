@@ -12,6 +12,7 @@ int main(string[] args)
 		services.cliConfigure!AimSecretsDefineValues(AimSecretsDefineValues.CONF_FILE);
 		services.cliConfigure!AimDeployConfig(AimDeployConfig.CONF_FILE);
 		services.addSingleton!(IAimDeployPacker, AimDeployPacker);
+		services.addSingleton!(IFileDownloader, FileDownloader);
 	});
 
 	auto core = new CommandLineInterface!(

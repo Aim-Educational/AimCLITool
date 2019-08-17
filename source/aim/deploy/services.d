@@ -7,6 +7,7 @@ interface IAimDeployPacker
     static const DEFAULT_PACKAGE_NAME = "deploy-package.tar";
 
     void pack(string outputFile, string dataDir, string aimDir);
+    void unpack(string inputFile, string outputDir);
 }
 
 final class AimDeployPacker : IAimDeployPacker
@@ -51,6 +52,34 @@ final class AimDeployPacker : IAimDeployPacker
         string command = "tar";
         string[] params = ["cvf", outputFile, newDataDir.relativePath, aimDir.relativePath];
 
+        Shell.executeEnforceStatusPositive(format("%s %s", command, params.map!(p => "\""~p~"\"").reduce!((s1, s2) => s1 ~ " " ~ s2)));
+    }
+
+    override void unpack(string inputFile, string outputDir)
+    {
+        import std.algorithm : map, reduce;
+        import std.path      : absolutePath, expandTilde, buildNormalizedPath;
+        import std.file      : exists, isFile, mkdirRecurse;
+        import std.exception : enforce;
+        import std.format    : format;
+        import jaster.cli    : Shell;
+
+        Shell.verboseLogf("Making paths absolute");
+        inputFile = inputFile.expandTilde.absolutePath.buildNormalizedPath;
+        outputDir = outputDir.expandTilde.absolutePath.buildNormalizedPath;
+
+        Shell.verboseLogf("Checking input file exists");
+        enforce(inputFile.exists, "The input file '%s' does not exist.".format(inputFile));
+        enforce(inputFile.isFile, "The input file '%s' is not actually a file.".format(inputFile));
+
+        Shell.verboseLogf("Creating output directory if needed");
+        if(!outputDir.exists)
+            mkdirRecurse(outputDir);
+
+        Shell.verboseLogf("Unpacking");
+
+        string command = "tar";
+        string[] params = ["xvf", inputFile, "-C", outputDir];
         Shell.executeEnforceStatusPositive(format("%s %s", command, params.map!(p => "\""~p~"\"").reduce!((s1, s2) => s1 ~ " " ~ s2)));
     }
 }

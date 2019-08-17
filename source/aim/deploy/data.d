@@ -83,4 +83,10 @@ struct AimDeployConfig
     ushort port;
     Type projectType;
     AimDeployGitlabCISource gitlab;
+
+    void enforceHasBeenInit()
+    {
+        import std.exception : enforce;
+        enforce(this.projectType != Type.ERROR_UNKNOWN, "Deployment project has not been initialised. Hint: Use 'aim deploy init' first.");
+    }
 }
