@@ -207,3 +207,37 @@ final class AimSecretsVerify : BaseCommand
         }
     }
 }
+
+@Command("secrets list", "Lists all defined secrets.")
+final class AimSecretsList : BaseCommand
+{
+    private IAimCliConfig!AimSecretsConfig _config;
+
+    this(IAimCliConfig!AimSecretsConfig config)
+    {
+        assert(config !is null);
+        this._config = config;
+    }
+
+    override int onExecute()
+    {
+        import std.algorithm : map;
+        import std.array     : array;
+        import std.stdio     : writeln;
+
+        super.onExecute();
+
+        auto text = new HelpTextBuilderTechnical();
+        text.addSection("Secrets")
+            .addContent(new HelpSectionArgInfoContent(
+                this._config.value
+                            .definitions
+                            .map!(d => HelpSectionArgInfoContent.ArgInfo([d.name], d.description, cast(ArgIsOptional)d.isOptional))
+                            .array,
+                AutoAddArgDashes.no
+        ));
+
+        writeln(text.toString());
+        return 0;
+    }
+}
