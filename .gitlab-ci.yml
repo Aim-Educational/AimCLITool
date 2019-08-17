@@ -75,7 +75,7 @@ Test x64:
   variables:
       BUILD_ARCH: "64"
 
-Bundle Artifacts:
+Bundle:
   stage: Bundle
   artifacts:
     paths:
