@@ -3,7 +3,7 @@ module aim.deploy.services;
 interface IAimDeployPacker
 {
     static const NO_AIM_DIR = "none";
-    static const DATA_DIR_NAME = "deploy-data";
+    static const DATA_DIR_NAME = "deploy-dist";
     static const DEFAULT_PACKAGE_NAME = "deploy-package.tar";
 
     void pack(string outputFile, string dataDir, string aimDir);
