@@ -1,5 +1,6 @@
 before_script:
   - apt-get update
+  - apt-get install libevent-dev libssl-dev
   - if [ "$BUILD_ARCH" = "32" ]; then apt-get install -y gcc-multilib libc6-dev-i386 --no-install-recommends --allow-unauthenticated; fi
   - if [ "$BUILD_ARCH" = "64" ]; then apt-get install -y gcc libc6-dev --no-install-recommends --allow-unauthenticated; fi
   - if [ "$BUILD_ARCH" = "" ]; then echo "NO BUILD_ARCH ENVIRONMENT VARIABLE"; fi

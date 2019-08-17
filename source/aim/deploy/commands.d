@@ -81,7 +81,7 @@ final class AimDeployInit : BaseCommand
             while(true)
             {
                 try config.port = Shell.getInput!ushort("Port to host project on locally: ");
-                catch(Exception){}
+                catch(Exception){ continue; }
 
                 break;
             }
