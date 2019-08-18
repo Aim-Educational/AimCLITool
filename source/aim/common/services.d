@@ -35,7 +35,18 @@ final class AimCliConfig(alias ConfT) : IAimCliConfig!ConfT
 
         Shell.verboseLogf("Loading %s from file: %s", __traits(identifier, ConfT), this._file);
         if(this._file.exists)
+        {
             this._value = this._file.readText().deserialize!ConfT();
+            static if(__traits(compiles, {string s = this._value.PROXY;}))
+            {
+                if(this._value.PROXY !is null && this._value.PROXY.exists)
+                {
+                    Shell.verboseLogf("File is a proxy, loading actual file");
+                    this.loadFromFile(this._value.PROXY);
+                    this._value.IS_PROXY = true;
+                }
+            }
+        }
     }
 
     override void edit(void delegate(scope ref ConfT) editFunc)

@@ -16,6 +16,8 @@ struct AimSecretsConfig
         bool isOptional;
     }
 
+    string PROXY;
+    bool IS_PROXY;
     Def[] definitions;
 
     bool definitionExists(string defName)
@@ -36,5 +38,7 @@ struct AimSecretsDefineValues
         string value;
     }
 
+    string PROXY;
+    bool IS_PROXY;
     Def[] values;
 }

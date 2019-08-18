@@ -121,6 +121,7 @@ final class AimDeployTrigger : BaseCommand
 
     private IFileDownloader _downloader;
     private IAimCliConfig!AimDeployConfig _config;
+    private IAimCliConfig!AimSecretsConfig _secretsConfig;
     private IAimCliConfig!AimSecretsDefineValues _secrets;
     private IAimDeployPacker _packer;
 
@@ -131,20 +132,27 @@ final class AimDeployTrigger : BaseCommand
         IFileDownloader                       downloader, 
         IAimCliConfig!AimDeployConfig         config, 
         IAimDeployPacker                      packer, 
-        IAimCliConfig!AimSecretsDefineValues  secrets
+        IAimCliConfig!AimSecretsDefineValues  secrets,
+        IAimCliConfig!AimSecretsConfig        secretsConfig
     )
     {
+        assert(downloader !is null);
+        assert(config !is null);
+        assert(packer !is null);
+        assert(secrets !is null);
+        assert(secretsConfig !is null);
+
         this._downloader = downloader;
         this._config = config;
         this._packer = packer;
         this._secrets = secrets;
+        this._secretsConfig = secretsConfig;
     }
 
     override int onExecute()
     {
         import std.stdio : writeln;
         super.onExecute();
-
         this._config.value.enforceHasBeenInit();
 
         string tag;
@@ -155,6 +163,7 @@ final class AimDeployTrigger : BaseCommand
         scope(success) this._config.edit((scope ref config){ config.gitlab.lastTagUsed = tag; });
 
         failAssertOnNonLinux();
+        this.checkSecrets();
         this.checkCommands();
         this.setupNginx();
         this.setupService();
@@ -262,6 +271,16 @@ final class AimDeployTrigger : BaseCommand
         Shell.executeEnforceStatusZero("systemctl restart "~this._config.value.name~".service");
     }
 
+    private void checkSecrets()
+    {
+        import std.file : thisExePath;
+
+        Shell.pushLocation(AimDeployInit.DIR_DIST);
+        scope(exit) Shell.popLocation();
+
+        Shell.executeEnforceStatusZero("\""~thisExePath~"\" secrets verify");
+    }
+
     private void checkCommands()
     {
         Shell.enforceCommandExists("certbot");
@@ -327,7 +346,7 @@ final class AimDeployTrigger : BaseCommand
         Shell.verboseLogf("Stopping existing project service.");
         Shell.execute("systemctl stop "~this._config.value.name~".service");
 
-        Shell.verboseLogf("Recreating distribution directory and then unpacking distribution package");
+        Shell.verboseLogf("Recreating distribution directory and then unpacking distribution package.");
         if(AimDeployInit.DIR_DIST.exists)
         {
             AimDeployInit.DIR_DIST.rmdirRecurse();
@@ -335,6 +354,18 @@ final class AimDeployTrigger : BaseCommand
         }
         AimDeployInit.DIR_DIST.mkdirRecurse();
         this._packer.unpack(FILE_PACKAGE, AimDeployInit.DIR_DIST);
+
+        Shell.verboseLogf("Creating proxy to secret configs.");
+        this._secrets.edit((scope ref secrets)
+        {
+            if(!secrets.IS_PROXY)
+                secrets.PROXY = PATH(AimDeployInit.DIR_DIST, AimSecretsDefineValues.CONF_FILE);
+        });
+        this._secretsConfig.edit((scope ref secrets)
+        {
+            if(!secrets.IS_PROXY)
+                secrets.PROXY = PATH(AimDeployInit.DIR_DIST, AimSecretsConfig.CONF_FILE);
+        });
 
         return false;
     }
