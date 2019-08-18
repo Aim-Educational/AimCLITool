@@ -274,11 +274,7 @@ final class AimDeployTrigger : BaseCommand
     private void checkSecrets()
     {
         import std.file : thisExePath;
-
-        Shell.pushLocation(AimDeployInit.DIR_DIST);
-        scope(exit) Shell.popLocation();
-
-        Shell.executeEnforceStatusZero("\""~thisExePath~"\" secrets verify");
+        Shell.executeEnforceStatusZero("\""~thisExePath~"\" secrets verify -v");
     }
 
     private void checkCommands()
@@ -303,7 +299,7 @@ final class AimDeployTrigger : BaseCommand
         import core.time     : msecs;
         import std.algorithm : sort;
         import std.array     : array;
-        import std.file      : rmdirRecurse, mkdirRecurse, exists;
+        import std.file      : rmdirRecurse, mkdirRecurse, exists, copy;
         import std.string    : splitLines;
         import std.exception : enforce;
         import asdf          : deserialize;
@@ -355,17 +351,10 @@ final class AimDeployTrigger : BaseCommand
         AimDeployInit.DIR_DIST.mkdirRecurse();
         this._packer.unpack(FILE_PACKAGE, AimDeployInit.DIR_DIST);
 
-        Shell.verboseLogf("Creating proxy to secret configs.");
-        this._secrets.edit((scope ref secrets)
-        {
-            if(!secrets.IS_PROXY)
-                secrets.PROXY = PATH(AimDeployInit.DIR_DIST, AimSecretsDefineValues.CONF_FILE);
-        });
-        this._secretsConfig.edit((scope ref secrets)
-        {
-            if(!secrets.IS_PROXY)
-                secrets.PROXY = PATH(AimDeployInit.DIR_DIST, AimSecretsConfig.CONF_FILE);
-        });
+        Shell.verboseLogf("Copying aim configuration over.");
+        this._secretsConfig.edit((scope ref conf){}); // To ensure the path to the file exists before copying.
+        copy(PATH(AimDeployInit.DIR_DIST, AimSecretsConfig.CONF_FILE), AimSecretsConfig.CONF_FILE);
+        this._secretsConfig.reload();
 
         return false;
     }

@@ -10,6 +10,7 @@ interface IAimCliConfig(alias ConfT) : IConfig!(ConstOf!ConfT)
 if(is(ConfT == struct))
 {
     void edit(void delegate(scope ref ConfT));
+    void reload();
 }
 
 interface IFileDownloader
@@ -35,18 +36,7 @@ final class AimCliConfig(alias ConfT) : IAimCliConfig!ConfT
 
         Shell.verboseLogf("Loading %s from file: %s", __traits(identifier, ConfT), this._file);
         if(this._file.exists)
-        {
             this._value = this._file.readText().deserialize!ConfT();
-            static if(__traits(compiles, {string s = this._value.PROXY;}))
-            {
-                if(this._value.PROXY !is null && this._value.PROXY.exists)
-                {
-                    Shell.verboseLogf("File is a proxy, loading actual file");
-                    this.loadFromFile(this._value.PROXY);
-                    this._value.IS_PROXY = true;
-                }
-            }
-        }
     }
 
     override void edit(void delegate(scope ref ConfT) editFunc)
@@ -65,6 +55,11 @@ final class AimCliConfig(alias ConfT) : IAimCliConfig!ConfT
 
         Shell.verboseLogf("Saving %s to file: %s", __traits(identifier, ConfT), this._file);
         write(this._file, this._value.serializeToJsonPretty());
+    }
+
+    override void reload()
+    {
+        this.loadFromFile(this._file);
     }
 
     @property
