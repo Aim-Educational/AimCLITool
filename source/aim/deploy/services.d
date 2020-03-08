@@ -1,85 +1,121 @@
 module aim.deploy.services;
 
-interface IAimDeployPacker
-{
-    static const NO_AIM_DIR = "none";
-    static const DATA_DIR_NAME = "deploy-dist";
-    static const DEFAULT_PACKAGE_NAME = "deploy-package.tar";
+import jaster.ioc, jaster.cli;
+import aim.deploy.data, aim.common, aim.secrets.data;
 
-    void pack(string outputFile, string dataDir, string aimDir);
-    void unpack(string inputFile, string outputDir);
+interface IDeployHandlerFactory
+{
+    IDeployHandler getHandlerForType(AimDeployConfig.Type type);
 }
 
-final class AimDeployPacker : IAimDeployPacker
+interface IDeployHandler
 {
-    override void pack(string outputFile, string dataDir, string aimDir)
+    int deploy();
+}
+
+final class DeployHandlerFactory : IDeployHandlerFactory
+{
+    private ServiceScopeAccessor _scope;
+
+    this(ServiceScopeAccessor scope_)
     {
-        import std.algorithm    : map, reduce;
-        import std.path         : absolutePath, expandTilde, setExtension, buildNormalizedPath, dirName, relativePath;
-        import std.file         : exists, isDir, remove, rename;
-        import std.exception    : enforce;
-        import std.format       : format;
-        import jaster.cli       : Shell;
-
-        if(aimDir is null)
-            aimDir = ".aim/";
-
-        Shell.verboseLogf("Making paths absolute...");
-        outputFile = outputFile.expandTilde.absolutePath.buildNormalizedPath;
-        dataDir    = dataDir.expandTilde.absolutePath.buildNormalizedPath;
-        if(aimDir != NO_AIM_DIR)
-            aimDir = aimDir.expandTilde.absolutePath.buildNormalizedPath;
-
-        Shell.verboseLogf("Checking dirs exist...");
-        enforce(dataDir.exists, "The data directory '%s' does not exist.".format(dataDir));
-        enforce(dataDir.isDir,  "The data directory '%s' is not actually a directory.".format(dataDir));
-        if(aimDir != NO_AIM_DIR)
-        {
-            enforce(aimDir.exists,  "The aim directory '%s' does not exist.".format(aimDir));
-            enforce(aimDir.isDir,   "The aim directory '%s' is not actually a directory.".format(aimDir));
-        }
-
-        Shell.verboseLogf("Removing old package file if it exists...");
-        if(outputFile.exists)
-            outputFile.remove();
-
-        Shell.verboseLogf("Temporarily renaming data directory...");
-        auto newDataDir = buildNormalizedPath(dataDir.dirName, DATA_DIR_NAME);
-        rename(dataDir, newDataDir);
-        scope(exit) rename(newDataDir, dataDir);
-
-        // Things are in variables to make the code a bit easier to modify in the future.
-        string command = "tar";
-        string[] params = ["cvf", outputFile, newDataDir.relativePath, aimDir.relativePath];
-
-        Shell.executeEnforceStatusPositive(format("%s %s", command, params.map!(p => "\""~p~"\"").reduce!((s1, s2) => s1 ~ " " ~ s2)));
+        this._scope = scope_;
     }
 
-    override void unpack(string inputFile, string outputDir)
+    override IDeployHandler getHandlerForType(AimDeployConfig.Type type)
     {
-        import std.algorithm : map, reduce;
-        import std.path      : absolutePath, expandTilde, buildNormalizedPath;
-        import std.file      : exists, isFile, mkdirRecurse;
-        import std.exception : enforce;
-        import std.format    : format;
-        import jaster.cli    : Shell;
+        Shell.verboseLogfln("Creating handler for project type '%s'", type);
 
-        Shell.verboseLogf("Making paths absolute");
-        inputFile = inputFile.expandTilde.absolutePath.buildNormalizedPath;
-        outputDir = outputDir.expandTilde.absolutePath.buildNormalizedPath;
+        auto serviceScope = this._scope.serviceScope;
+        final switch(type) with(AimDeployConfig.Type)
+        {
+            case ERROR_UNKNOWN: throw new Exception("Nice try");
+            case Docker:
+                return Injector.construct!DockerDeployHandler(serviceScope);
+        }
+    }
+}
 
-        Shell.verboseLogf("Checking input file exists");
-        enforce(inputFile.exists, "The input file '%s' does not exist.".format(inputFile));
-        enforce(inputFile.isFile, "The input file '%s' is not actually a file.".format(inputFile));
+final class DockerDeployHandler : IDeployHandler
+{
+    private IAimCliConfig!AimDeployConfig        _deployConf;
+    private IAimCliConfig!AimSecretsConfig       _secretsConf;
+    private IAimCliConfig!AimSecretsDefineValues _valuesConf;
+    private ICommandLineInterface                _cli;
 
-        Shell.verboseLogf("Creating output directory if needed");
-        if(!outputDir.exists)
-            mkdirRecurse(outputDir);
+    this(
+        IAimCliConfig!AimDeployConfig deployConf,
+        IAimCliConfig!AimSecretsConfig secretsConf,
+        ICommandLineInterface cli,
+        IAimCliConfig!AimSecretsDefineValues valuesConf
+    )
+    {
+        this._secretsConf = secretsConf;
+        this._valuesConf  = valuesConf;
+        this._deployConf  = deployConf;
+        this._cli         = cli;
+    }
 
-        Shell.verboseLogf("Unpacking");
+    override int deploy()
+    {
+        import std.conv : to;
 
-        string command = "tar";
-        string[] params = ["xvf", inputFile, "-C", outputDir];
-        Shell.executeEnforceStatusPositive(format("%s %s", command, params.map!(p => "\""~p~"\"").reduce!((s1, s2) => s1 ~ " " ~ s2)));
+        this._cli.parseAndExecute(["secrets", "verify", "-v"], IgnoreFirstArg.no);
+
+        Shell.enforceCommandExists("docker");
+        Shell.executeEnforceStatusZero("docker pull " ~ this.getDockerPullString());
+        Shell.execute("docker stop "~this.getContainerName());
+        Shell.executeEnforceStatusZero(
+            "docker run"
+           ~" --name="~this.getContainerName
+           ~" --restart=always"
+           ~" -p 127.0.0.1:"~this._deployConf.value.port.to!string~":80"
+           ~this.getEnvironmentLines()
+           ~" -d "
+           ~this.getDockerPullString()
+        );
+
+        return 0;
+    }
+
+    private string getDockerPullString()
+    {
+        string str = this._deployConf.value.docker.repository;
+
+        if(str[$-1] != '/')
+            str ~= '/';
+
+        str ~= this._deployConf.value.docker.imageName;
+
+        if(this._deployConf.value.docker.tagInUse.length > 0)
+        {
+            str ~= ':';
+            str ~= this._deployConf.value.docker.tagInUse;
+        }
+
+        return str;
+    }
+
+    private string getContainerName()
+    {
+        import std.uni : toLower;
+
+        return "aim-cli-"~this._deployConf.value.docker.imageName.toLower();
+    }
+
+    private string getEnvironmentLines()
+    {
+        import std.exception : assumeUnique;
+        import std.process   : environment;
+
+        char[] output;
+
+        foreach(secret; this._secretsConf.value.definitions)
+        {
+            environment[secret.name] = this._valuesConf.value.getValueByName(secret.name);
+            output ~= " -e "~secret.name;
+        }
+
+        return output.assumeUnique;
     }
 }

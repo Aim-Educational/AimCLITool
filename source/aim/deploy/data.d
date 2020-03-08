@@ -2,70 +2,21 @@ module aim.deploy.data;
 
 private
 {
-    import aim.common;
+    import aim.common, aim.deploy.addons;
 }
 
-struct AimDeployGitlabCISource
+struct AimDeployDockerSource
 {
-    string gitlabUrl;
-    string repoPath;
-    string artifactRawUri;
-    string artifactJob;
-    string lastTagUsed;
+    string repository;
+    string imageName;
+    string tagInUse;
+}
 
-    string getPackageDownloadUrl(string artifactRef)
-    {
-        import std.format : format;
-        
-        this.fixData();
-        return "%s/%s/-/jobs/artifacts/%s/raw/%s?job=%s".format(
-            this.gitlabUrl,
-            this.repoPath,
-            artifactRef,
-            this.artifactRawUri, 
-            this.artifactJob
-        );
-    }
-    ///
-    unittest
-    {
-        auto source = AimDeployGitlabCISource(
-            "https://gitlab.com",
-            "SealabJaster/AimCLITool",
-            "linux-x86/aim",
-            "Bundle"
-        );
-        assert(source.getPackageDownloadUrl("v0.1.0") == "https://gitlab.com/SealabJaster/AimCLITool/-/jobs/artifacts/v0.1.0/raw/linux-x86/aim?job=Bundle");
-    }
-
-    string getTagsUrl()
-    {
-        import std.format : format;
-        import std.array  : replace;
-
-        this.fixData();
-        return "%s/api/v4/projects/%s/repository/tags".format(
-            this.gitlabUrl,
-            this.repoPath.replace("/", "%2F")
-        );
-    }
-    ///
-    unittest
-    {
-        auto source = AimDeployGitlabCISource(
-            "https://gitlab.com",
-            "SealabJaster/AimCLITool",
-            "linux-x86/aim",
-            "Bundle"
-        );
-        assert(source.getTagsUrl() == "https://gitlab.com/api/v4/projects/SealabJaster%2FAimCLITool/repository/tags", source.getTagsUrl());
-    }
-
-    private void fixData()
-    {
-        if(this.gitlabUrl.length > 0 && this.gitlabUrl[$-1] == '/')
-            this.gitlabUrl = this.gitlabUrl[0..$-1];
-    }
+struct AimDeployGithubDeploymentTrigger
+{
+    string deployToken;
+    string repoOwner;
+    string repoName;
 }
 
 struct AimDeployConfig
@@ -75,14 +26,17 @@ struct AimDeployConfig
     enum Type
     {
         ERROR_UNKNOWN,
-        AspCore   
+        Docker   
     }
 
     string name;
     string domain;
     ushort port;
-    Type projectType;
-    AimDeployGitlabCISource gitlab;
+    Type   projectType;
+
+    AimDeployAddons[]                addons;
+    AimDeployDockerSource            docker;
+    AimDeployGithubDeploymentTrigger triggerOnGithubDeployment;
 
     void enforceHasBeenInit()
     {

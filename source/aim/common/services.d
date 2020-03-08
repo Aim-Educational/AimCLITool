@@ -3,14 +3,17 @@ module aim.common.services;
 private
 {
     import std.traits : ConstOf;
-    import jaster.ioc.container, jaster.cli : Shell;
+    import jaster.ioc, jaster.cli : Shell;
 }
 
-interface IAimCliConfig(alias ConfT) : IConfig!(ConstOf!ConfT)
+interface IAimCliConfig(alias ConfT)
 if(is(ConfT == struct))
 {
     void edit(void delegate(scope ref ConfT));
     void reload();
+
+    @property
+    ConfT value();
 }
 
 interface IFileDownloader
@@ -34,7 +37,7 @@ final class AimCliConfig(alias ConfT) : IAimCliConfig!ConfT
         this._file = confFile.replace("\\", "/").expandTilde().absolutePath();
         enforce(this._file.isValidPath, "The path '"~this._file~"' is not valid.");
 
-        Shell.verboseLogf("Loading %s from file: %s", __traits(identifier, ConfT), this._file);
+        Shell.verboseLogfln("Loading %s from file: %s", __traits(identifier, ConfT), this._file);
         if(this._file.exists)
             this._value = this._file.readText().deserialize!ConfT();
     }
@@ -49,11 +52,11 @@ final class AimCliConfig(alias ConfT) : IAimCliConfig!ConfT
 
         if(!this._file.exists)
         {
-            Shell.verboseLogf("File does not exist, creating directory path: %s", this._file.dirName);
+            Shell.verboseLogfln("File does not exist, creating directory path: %s", this._file.dirName);
             mkdirRecurse(this._file.dirName);
         }
 
-        Shell.verboseLogf("Saving %s to file: %s", __traits(identifier, ConfT), this._file);
+        Shell.verboseLogfln("Saving %s to file: %s", __traits(identifier, ConfT), this._file);
         write(this._file, this._value.serializeToJsonPretty());
     }
 
@@ -69,14 +72,14 @@ final class AimCliConfig(alias ConfT) : IAimCliConfig!ConfT
     }
 }
 
-void cliConfigure(alias ConfT)(ServiceCollection services, string confFile)
+ServiceInfo cliConfigure(alias ConfT)(string confFile)
 {
-    services.addSingleton!(IAimCliConfig!ConfT, AimCliConfig!ConfT)(
-        (scope conf)
-        {
-            conf.loadFromFile(confFile);
-        }
-    );
+    return ServiceInfo.asSingleton!(IAimCliConfig!ConfT, AimCliConfig!ConfT)((ref _)
+    {
+        auto conf = new AimCliConfig!ConfT();
+        conf.loadFromFile(confFile);
+        return conf;
+    });
 }
 
 final class FileDownloader : IFileDownloader

@@ -29,14 +29,14 @@ final class AimSecretsDefine : BaseCommand
     override int onExecute()
     {
         super.onExecute();
-        Shell.verboseLogf("Name: %s\nDescription: %s\nIsOptional: %s", this.name, this.description, this.isOptional.get(false));
+        Shell.verboseLogfln("Name: %s\nDescription: %s\nIsOptional: %s", this.name, this.description, this.isOptional.get(false));
 
         this._config.edit((scope ref config)
         {
             if(!config.definitionExists(this.name))
                 config.definitions ~= AimSecretsConfig.Def(this.name, this.description, this.isOptional.get(false));
             else
-                Shell.verboseLogf("Definition called '%s' already exists, skipping.", this.name);
+                Shell.verboseLogfln("Definition called '%s' already exists, skipping.", this.name);
         });
 
         return 0;
@@ -70,11 +70,11 @@ final class AimSecretsUndefine : BaseCommand
             
             if(!config.definitionExists(this.name))
             {
-                Shell.verboseLogf("Cannot undefine '%s' as it is not already defined.", this.name);
+                Shell.verboseLogfln("Cannot undefine '%s' as it is not already defined.", this.name);
                 return;
             }
             else
-                Shell.verboseLogf("Undefining '%s'.", this.name);
+                Shell.verboseLogfln("Undefining '%s'.", this.name);
 
             config.definitions = config.definitions
                                        .filter!(d => d.name != this.name)
@@ -113,7 +113,7 @@ final class AimSecretsSet : BaseCommand
     override int onExecute()
     {
         super.onExecute();
-        Shell.verboseLogf("Name: %s\nValue: %s", this.name, this.value);
+        Shell.verboseLogfln("Name: %s\nValue: %s", this.name, this.value);
 
         this._values.edit((scope ref values)
         {
@@ -157,10 +157,7 @@ final class AimSecretsGet : BaseCommand
         super.onExecute();
         enforce(this._config.value.definitionExists(this.name), "The secret '"~this.name~"' is not defined.");
 
-        auto value = this._values.value.values.filter!(v => v.name == this.name);
-        enforce(!value.empty, "The secret '"~this.name~"' does not have a value.");
-
-        writeln(value.front.value);
+        writeln(this._values.value.getValueByName(this.name));
         return 0;
     }
 }
@@ -238,6 +235,39 @@ final class AimSecretsList : BaseCommand
         ));
 
         writeln(text.toString());
+        return 0;
+    }
+}
+
+@Command("secrets download", "Downloads a secrets definition file from the given URL.")
+final class AimSecretsDownload : BaseCommand
+{
+    private static immutable TEMP_FILE = PATH(DIR_GIT_IGNORE, "downloaded_secrets_file.json");
+
+    private IAimCliConfig!AimSecretsConfig _config;
+    private IFileDownloader                _downloader;
+
+    @CommandPositionalArg(0, "URL", "The URL of the definition file to download.")
+    string url;
+
+    this(IFileDownloader downloader, IAimCliConfig!AimSecretsConfig config)
+    {
+        this._config = config;
+        this._downloader = downloader;
+    }
+
+    override int onExecute()
+    {
+        this._downloader.downloadStreaming(this.url, TEMP_FILE);
+
+        auto newConfig = new AimCliConfig!AimSecretsConfig();
+        newConfig.loadFromFile(TEMP_FILE);
+
+        this._config.edit((scope ref conf)
+        {
+            conf = newConfig.value;
+        });
+
         return 0;
     }
 }

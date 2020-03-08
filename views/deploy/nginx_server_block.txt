@@ -1,12 +1,11 @@
 $PLACEHOLDERS
     $DOMAIN
     $PORT
-
 $END
 $FINISH_CONFIG
 server {
     listen        80;
-    server_name   $DOMAIN;
+    server_name   https://$DOMAIN;
     location / {
         proxy_pass         http://localhost:$PORT;
         proxy_http_version 1.1;

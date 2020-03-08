@@ -37,4 +37,15 @@ struct AimSecretsDefineValues
     }
 
     Def[] values;
+
+    string getValueByName(string name)
+    {
+        import std.algorithm : filter;
+        import std.exception : enforce;
+
+        auto value = this.values.filter!(v => v.name == name);
+        enforce(!value.empty, "The secret '"~name~"' does not have a value.");
+
+        return value.front.value;
+    }
 }

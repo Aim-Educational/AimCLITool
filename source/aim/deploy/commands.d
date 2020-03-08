@@ -6,42 +6,9 @@ private
     import aim.common, aim.deploy, aim.secrets;
 }
 
-@Command("deploy pack", "Creates a package that can then be deployed to a server.")
-final class AimDeployPack : BaseCommand
-{
-    private IAimDeployPacker _packer;
-
-    @CommandNamedArg("d|data-dir", "The directory containing the package's data.")
-    string directory;
-
-    @CommandNamedArg("a|aim-dir", "The path to the '.aim' directory. Use '-a none' if there is no '.aim' directory.")
-    string aimDirectory;
-
-    @CommandNamedArg("o|out-file", "The output file name. [Default="~IAimDeployPacker.DEFAULT_PACKAGE_NAME~"]")
-    Nullable!string outFile;
-
-    this(IAimDeployPacker packer)
-    {
-        assert(packer !is null);
-        this._packer = packer;
-    }
-
-    override int onExecute()
-    {
-        import std.exception : assumeUnique;
-        super.onExecute();
-        this._packer.pack(this.outFile.get(IAimDeployPacker.DEFAULT_PACKAGE_NAME).assumeUnique, this.directory, this.aimDirectory);
-
-        return 0;
-    }
-}
-
 @Command("deploy init", "Initialises a deployment project.")
 final class AimDeployInit : BaseCommand
 {
-    static const DIR_DIST = "dist";
-    static const DIR_DOWNLOADS = "downloads";
-
     private IAimCliConfig!AimDeployConfig _config;
 
     this(IAimCliConfig!AimDeployConfig config)
@@ -54,46 +21,44 @@ final class AimDeployInit : BaseCommand
         super.onExecute();
 
         this.createConfigFromUserInput();
-        this.createDirStructure();
-
         return 0;
-    }
-
-    private void createDirStructure()
-    {
-        import std.file : mkdir;
-
-        Shell.verboseLogf("Creating directory structure");
-        mkdir(DIR_DIST);
-        mkdir(DIR_DOWNLOADS);
     }
 
     private void createConfigFromUserInput()
     {
-        import jaster.cli : Shell;
-
-        Shell.verboseLogf("Asking the user to create the deployment config");
-        this._config.edit((scope ref config)
+        this._config.edit((scope ref conf) 
         {
-            config.name = this.getNonNullStringInput("Project Name: ");
-            config.domain = this.getNonNullStringInput("Domain to host project on: ");
+            conf.name        = Shell.getInput!string("Name: ");
+            conf.domain      = Shell.getInput!string("Domain: ");
+            conf.port        = Shell.getInput!ushort("Port: ");
+            conf.projectType = Shell.getInputFromList("Type", [AimDeployConfig.Type.Docker]);
 
-            while(true)
+            final switch(conf.projectType)
             {
-                try config.port = Shell.getInput!ushort("Port to host project on locally: ");
-                catch(Exception){ continue; }
+                case AimDeployConfig.Type.ERROR_UNKNOWN: throw new Exception("Nice try");
 
-                break;
+                case AimDeployConfig.Type.Docker:
+                    this.getDockerFromUserInput(conf.docker);
+                    break;
             }
-            
-            config.projectType = AimDeployConfig.Type.AspCore; // Hard coded until we have more options.
-            
-            // Source is assumed to be Gitlab until we have more.
-            config.gitlab.gitlabUrl = this.getNonNullStringInput("Gitlab instance URL: ");
-            config.gitlab.repoPath = this.getNonNullStringInput("Repo path [usually: Username/RepoName]: ");
-            config.gitlab.artifactRawUri = this.getNonNullStringInput("Path inside artifact zip to package: ");
-            config.gitlab.artifactJob = this.getNonNullStringInput("Name of job to use artifact zip of: ");
+
+            // TODO: Add a getInput variant that allows selecting a value from a given list.
+            //       For now, we'll just assume that they want to always trigger from a github deployment.
+            this.getGithubDeployFromUserInput(conf.triggerOnGithubDeployment);
         });
+    }
+
+    private void getDockerFromUserInput(scope ref AimDeployDockerSource conf)
+    {
+        conf.repository = this.getNonNullStringInput("Repository: ");
+        conf.imageName  = this.getNonNullStringInput("Image name: ");
+    }
+
+    private void getGithubDeployFromUserInput(scope ref AimDeployGithubDeploymentTrigger conf)
+    {
+        conf.deployToken = this.getNonNullStringInput("Deploy Token: ");
+        conf.repoOwner   = this.getNonNullStringInput("Repo Owner: ");
+        conf.repoName    = this.getNonNullStringInput("Repo Name: ");
     }
 
     private string getNonNullStringInput(string prompt)
@@ -113,249 +78,83 @@ final class AimDeployInit : BaseCommand
 @Command("deploy trigger", "Triggers a deployment attempt.")
 final class AimDeployTrigger : BaseCommand
 {
-    // NOTE: Currently this code is all the logic for an AspCore project.
-    //       If I ever want to bother with another project type, then I need to move the logic into services/some kind of factory service.
-    const     FILE_PACKAGE                = PATH(AimDeployInit.DIR_DOWNLOADS, "package.tar");
-    immutable TEMPLATE_NGINX_SERVER_BLOCK = import("deploy/nginx_server_block.txt");
-    immutable TEMPLATE_SYSTEMD_SERVICE    = import("deploy/systemd_service.txt");
-
-    private IFileDownloader _downloader;
-    private IAimCliConfig!AimDeployConfig _config;
-    private IAimCliConfig!AimSecretsConfig _secretsConfig;
-    private IAimCliConfig!AimSecretsDefineValues _secrets;
-    private IAimDeployPacker _packer;
+    private IDeployHandlerFactory _factory;
+    private IAimDeployAddonFactory _addonFactory;
+    private IAimCliConfig!AimDeployConfig _deployConf;
 
     @CommandNamedArg("f|force", "Forces a deployment, even if the current one is up to date.")
     Nullable!bool force;
 
-    this(
-        IFileDownloader                       downloader, 
-        IAimCliConfig!AimDeployConfig         config, 
-        IAimDeployPacker                      packer, 
-        IAimCliConfig!AimSecretsDefineValues  secrets,
-        IAimCliConfig!AimSecretsConfig        secretsConfig
-    )
+    this(IDeployHandlerFactory factory, IAimCliConfig!AimDeployConfig deployConf, IAimDeployAddonFactory addonFactory)
     {
-        assert(downloader !is null);
-        assert(config !is null);
-        assert(packer !is null);
-        assert(secrets !is null);
-        assert(secretsConfig !is null);
-
-        this._downloader = downloader;
-        this._config = config;
-        this._packer = packer;
-        this._secrets = secrets;
-        this._secretsConfig = secretsConfig;
+        this._factory      = factory;
+        this._deployConf   = deployConf;
+        this._addonFactory = addonFactory;
     }
 
     override int onExecute()
     {
-        import std.stdio : writeln;
-        super.onExecute();
-        this._config.value.enforceHasBeenInit();
-
-        string tag;
-        auto shouldStop = this.downloadPackage(tag);
-        if(shouldStop)
-            return 0;
-
-        scope(success) this._config.edit((scope ref config){ config.gitlab.lastTagUsed = tag; });
-
-        failAssertOnNonLinux();
-        this.checkSecrets();
-        this.checkCommands();
-        this.setupNginx();
-        this.setupService();
-
-        writeln("Success");
-        return 0;
-    }
-
-    private void setupNginx()
-    {
-        import std.conv   : to;
-        import std.file   : write;
-        import std.format : format;
-        import std.array  : replace;
-        import jaster.cli : Shell;
-        import aim.common : Templater;
-
-        Shell.verboseLogf("NOTICE: Platform is Linux, so NGINX will be used.");
-
-        Shell.verboseLogf("Creating NGINX server block file.");
-        auto nginxFile = this.createNginxFilePath(this._config.value.name);
-        write(
-            nginxFile, 
-            Templater.resolveTemplate(
-                [
-                    "$DOMAIN": this._config.value.domain,
-                    "$PORT":   this._config.value.port.to!string
-                ],
-                TEMPLATE_NGINX_SERVER_BLOCK
-            )
-        );
-
-        Shell.verboseLogf("Linking NGINX server block file to sites-enabled.");
-        Shell.executeEnforceStatusPositive(
-            "ln -s \"%s\" \"%s\"".format(
-                nginxFile,
-                nginxFile.replace("sites-available", "sites-enabled")
-            )
-        );
-
-        Shell.verboseLogf("Restarting Nginx.");
-        Shell.executeEnforceStatusZero("service nginx restart");
-
-        Shell.verboseLogf("Setting up Certbot.");
-        Shell.executeEnforceStatusZero(
-            "certbot --nginx -d %s --non-interactive -m %s".format(
-                this._config.value.domain,
-                "bradley.chatha@gmail.com" // TEMP UNTIL I HAVE A CONFIG OPTION
-            )
-        );
-
-        Shell.verboseLogf("Restarting Nginx.");
-        Shell.executeEnforceStatusZero("service nginx restart");
-    }
-
-    private void setupService()
-    {
-        import std.algorithm : reduce, map, splitter, filter;
-        import std.array     : array, replace;
-        import std.range     : chain;
-        import std.file      : writeFile = write;
-        import std.path      : buildNormalizedPath;
-        import std.file      : getcwd;
-        import std.conv      : to;
-        import std.format    : format;
-
-        failAssertOnNonLinux();
-        Shell.verboseLogf("Setting up service.");
-
-        struct EnvVar
-        {
-            string name;
-            string value;
-        }
-        auto predefinedVars = 
-        [
-            EnvVar("ASPNETCORE_HTTPS_PORT", "443"),
-            EnvVar("AIMDEPLOY:DOMAIN",      this._config.value.domain)
-        ];
-
-        Shell.verboseLogf("NOTICE: Platform is Linux, so systemctl will be used."); // TODO: Eventually support different service systems.
-
-        Shell.verboseLogf("Creating service file.");
-        writeFile(
-            buildNormalizedPath("/etc/systemd/system/", this._config.value.name~".service"),
-            Templater.resolveTemplate(
-                [
-                    "$NAME":             this._config.value.name,
-                    "$WORKING_DIR":      buildNormalizedPath(getcwd(), AimDeployInit.DIR_DIST, IAimDeployPacker.DATA_DIR_NAME),
-                    "$PORT":             this._config.value.port.to!string,
-                    "$ENVIRONMENT_LIST": this._secrets
-                                             .value
-                                             .values
-                                             .map!(d => EnvVar(d.name, d.value))
-                                             .chain(predefinedVars)
-                                             .map!(v => "Environment='%s=%s'"
-                                                         .format(v.name.replace(":", "__"), v.value)
-                                             )
-                                             .reduce!((s1, s2) => s1~"\n"~s2)
-                ],
-                TEMPLATE_SYSTEMD_SERVICE
-            )
-        );
-
-        Shell.executeEnforceStatusZero("systemctl restart "~this._config.value.name~".service");
-    }
-
-    private void checkSecrets()
-    {
-        import std.file : thisExePath;
-        Shell.executeEnforceStatusZero("\""~thisExePath~"\" secrets verify -v");
-    }
-
-    private void checkCommands()
-    {
-        Shell.enforceCommandExists("certbot");
-        Shell.enforceCommandExists("dotnet");
-        Shell.enforceCommandExists("systemctl");
-        Shell.enforceCommandExists("nginx");
-    }
-
-    private string createNginxFilePath(string name)
-    {
-        import std.path : buildNormalizedPath;
-
-        failAssertOnNonLinux();
-        return buildNormalizedPath("/etc/nginx/sites-available/", name);
-    }
-
-    private bool downloadPackage(ref string tag)
-    {
-        import core.thread   : Thread;
-        import core.time     : msecs;
-        import std.algorithm : sort;
+        import std.algorithm : map;
         import std.array     : array;
-        import std.file      : rmdirRecurse, mkdirRecurse, exists, copy;
-        import std.string    : splitLines;
-        import std.exception : enforce;
-        import asdf          : deserialize;
-        import vibe.http.client, vibe.stream.operations;
+        import std.stdio     : writeln;
+        super.onExecute();
 
-        static struct Tag
+        this._deployConf.value.enforceHasBeenInit();
+
+        auto addons = this._deployConf.value.addons.map!(a => this._addonFactory.getAddonForType(a)).array;
+        foreach(addon; addons)
+            addon.onPreDeploy();
+
+        auto handler    = this._factory.getHandlerForType(this._deployConf.value.projectType);
+        auto statusCode = handler.deploy();
+
+        if(statusCode >= 0)
         {
-            string name;
+            foreach(addon; addons)
+                addon.onPostDeploy();
         }
 
-        Shell.verboseLogf("Getting tags: %s", this._config.value.gitlab.getTagsUrl());
-        Tag[] tags;
-        requestHTTP(URL(this._config.value.gitlab.getTagsUrl()),
-            (scope req){ req.method = HTTPMethod.GET; },
-            (scope res)
-            { 
-                enforce(res.statusCode == HTTPStatus.ok, "Did not get OK 200 back from tag URL: " ~ res.bodyReader.readAllUTF8()); 
-                tags = res.bodyReader.readAllUTF8().deserialize!(Tag[])();
-                tags = tags.sort!((t1, t2) => t1.name < t2.name).array;
+        return statusCode;
+    }
+}
+
+@Command("deploy use", "Use an addon with this deployment project.")
+final class AimDeployUse : BaseCommand
+{
+    private IAimDeployAddonFactory        _addonFactory;
+    private IAimCliConfig!AimDeployConfig _deployConf;
+
+    @CommandPositionalArg(0, "Addon", "The name of the addon to use. <values: Nginx>")
+    string addon;
+
+    this(IAimDeployAddonFactory addonFactory, IAimCliConfig!AimDeployConfig deployConf)
+    {
+        this._addonFactory = addonFactory;
+        this._deployConf   = deployConf;
+    }
+
+    override int onExecute()
+    {
+        import std.algorithm : canFind;
+        import std.conv      : to;
+
+        super.onExecute();
+
+        AimDeployAddons addon;
+
+        try addon = this.addon.to!AimDeployAddons();
+        catch(Exception ex) throw new Exception("Value '"~this.addon~"' is not a valid addon.");
+
+        this._deployConf.edit((scope ref conf)
+        {
+            if(!conf.addons.canFind(addon))
+            {
+                auto instance = this._addonFactory.getAddonForType(addon);
+                instance.onAddedToProject();
+                conf.addons ~= addon;
             }
-        );
-        Shell.verboseLogf("Tags: %s", tags);
+        });
 
-        if(tags.length == 0)
-        {
-            Shell.verboseLogf("NO TAGS. Won't continue.");
-            return true;
-        }
-
-        if(tags[$-1].name == this._config.value.gitlab.lastTagUsed && !this.force)
-        {
-            Shell.verboseLogf("Latest tag is the same as current deployment. Won't continue. Pass -f to bypass this.");
-            return true;
-        }
-        tag = tags[$-1].name;
-
-        Shell.verboseLogf("Downloading distribution package: %s", this._config.value.gitlab.getPackageDownloadUrl(tags[$-1].name));
-        this._downloader.downloadStreaming(this._config.value.gitlab.getPackageDownloadUrl(tags[$-1].name), FILE_PACKAGE);
-
-        Shell.verboseLogf("Stopping existing project service.");
-        Shell.execute("systemctl stop "~this._config.value.name~".service");
-
-        Shell.verboseLogf("Recreating distribution directory and then unpacking distribution package.");
-        if(AimDeployInit.DIR_DIST.exists)
-        {
-            AimDeployInit.DIR_DIST.rmdirRecurse();
-            Thread.sleep(500.msecs); // Give the OS time to catch up.
-        }
-        AimDeployInit.DIR_DIST.mkdirRecurse();
-        this._packer.unpack(FILE_PACKAGE, AimDeployInit.DIR_DIST);
-
-        Shell.verboseLogf("Copying aim configuration over.");
-        this._secretsConfig.edit((scope ref conf){}); // To ensure the path to the file exists before copying.
-        copy(PATH(AimDeployInit.DIR_DIST, AimSecretsConfig.CONF_FILE), AimSecretsConfig.CONF_FILE);
-        this._secretsConfig.reload();
-
-        return false;
+        return 0;
     }
 }

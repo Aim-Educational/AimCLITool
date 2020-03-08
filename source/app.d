@@ -1,19 +1,20 @@
 import jaster.cli.core, jaster.cli.util;
 import std.algorithm : any;
 import aim.secrets, aim.common, aim.deploy;
-import jaster.ioc.container;
+import jaster.ioc;
 
 int main(string[] args)
 {
-	auto provider = new ServiceProvider();
-	provider.configureServices((scope services)
-	{
-		services.cliConfigure!AimSecretsConfig(AimSecretsConfig.CONF_FILE);
-		services.cliConfigure!AimSecretsDefineValues(AimSecretsDefineValues.CONF_FILE);
-		services.cliConfigure!AimDeployConfig(AimDeployConfig.CONF_FILE);
-		services.addSingleton!(IAimDeployPacker, AimDeployPacker);
-		services.addSingleton!(IFileDownloader, FileDownloader);
-	});
+	auto provider = new ServiceProvider(
+    [
+        cliConfigure!AimSecretsConfig(AimSecretsConfig.CONF_FILE),
+        cliConfigure!AimSecretsDefineValues(AimSecretsDefineValues.CONF_FILE),
+        cliConfigure!AimDeployConfig(AimDeployConfig.CONF_FILE),
+		ServiceInfo.asSingleton!(IFileDownloader, FileDownloader),
+        ServiceInfo.asScoped!(IDeployHandlerFactory, DeployHandlerFactory),
+        ServiceInfo.asScoped!(IAimDeployAddonFactory, AimDeployAddonFactory),
+        addCommandLineInterfaceService()
+    ]);
 
 	auto core = new CommandLineInterface!(
 		aim.secrets.commands,
