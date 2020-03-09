@@ -63,6 +63,12 @@ final class DockerDeployHandler : IDeployHandler
         this._cli.parseAndExecute(["secrets", "verify", "-v"], IgnoreFirstArg.no);
 
         Shell.enforceCommandExists("docker");
+        Shell.executeEnforceStatusZero(
+            "docker login"
+           ~" -u "~this._deployConf.value.docker.username
+           ~" -p "~this._deployConf.value.docker.passwordOrToken
+           ~" "~this._deployConf.value.docker.loginUrl
+        );
         Shell.executeEnforceStatusZero("docker pull " ~ this.getDockerPullString());
         Shell.execute("docker stop "~this.getContainerName());
         Shell.executeEnforceStatusZero(

@@ -10,6 +10,9 @@ struct AimDeployDockerSource
     string repository;
     string imageName;
     string tagInUse;
+    string username;
+    string passwordOrToken;
+    string loginUrl;
 }
 
 struct AimDeployGithubDeploymentTrigger

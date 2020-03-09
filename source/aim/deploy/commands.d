@@ -50,8 +50,11 @@ final class AimDeployInit : BaseCommand
 
     private void getDockerFromUserInput(scope ref AimDeployDockerSource conf)
     {
-        conf.repository = this.getNonNullStringInput("Repository: ");
-        conf.imageName  = this.getNonNullStringInput("Image name: ");
+        conf.repository      = this.getNonNullStringInput("Repository: ");
+        conf.imageName       = this.getNonNullStringInput("Image name: ");
+        conf.loginUrl        = this.getNonNullStringInput("Login url: ");
+        conf.username        = this.getNonNullStringInput("Docker username: ");
+        conf.passwordOrToken = this.getNonNullStringInput("Docker token: ");
     }
 
     private void getGithubDeployFromUserInput(scope ref AimDeployGithubDeploymentTrigger conf)
