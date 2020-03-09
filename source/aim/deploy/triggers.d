@@ -1,5 +1,6 @@
 module aim.deploy.triggers;
 
+import std.datetime;
 import aim.common, aim.deploy;
 import jaster.ioc, jaster.cli;
 
@@ -53,6 +54,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
                     databaseId
                     environment
                     state
+                    createdAt
                 }
             }
         }
@@ -67,6 +69,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         string repoOwner;
         string repoName;
         string deploymentId;
+        SysTime lastDeploymentTime; // The create_at time of the last deployment used. Used so we don't deploy older verisons by mistake.
     }
 
     this(IAimCliConfig!AimDeployConfig deployConf)
@@ -114,11 +117,15 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         Shell.verboseLogfln("Response: %s", response.toPrettyString());
 
         auto nodes = response["data"]["repository"]["deployments"]["nodes"];
-        auto firstPendingProduction = nodes.byValue.filter!(v => v["environment"].to!string == "production" && v["state"].to!string == "PENDING");
+        auto firstPendingProduction = nodes.byValue
+                                           .filter!(v => v["environment"].to!string == "production" 
+                                                      && v["state"].to!string       == "PENDING"
+                                                      && SysTime.fromISOExtString(v["createdAt"].to!string()) <  this._githubConf.value.lastDeploymentTime
+                                           );
 
         if(firstPendingProduction.empty)
         {
-            Shell.verboseLogfln("No pending deployments found");
+            Shell.verboseLogfln("No pending, in-date deployments found");
             this._githubConf.edit((scope ref conf){conf.deploymentId = null;});
             return false;
         }
@@ -126,7 +133,8 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
 
         this._githubConf.edit((scope ref conf)
         {
-            conf.deploymentId = firstPendingProduction.front["databaseId"].to!string();            
+            conf.deploymentId       = firstPendingProduction.front["databaseId"].to!string();
+            conf.lastDeploymentTime = SysTime.fromISOExtString(firstPendingProduction.front["createdAt"].to!string());   
         });
 
         Shell.verboseLogfln("Finding deployment ref");
