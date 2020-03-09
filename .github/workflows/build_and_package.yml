@@ -16,7 +16,7 @@ jobs:
       - name: Setup DMD
         uses: mihails-strasuns/setup-dlang@v0.3.0
         with:
-          compiler: dmd-2.088.0
+          compiler: ldc-latest
       - name: Test
         run: dub test
       - name: Build
