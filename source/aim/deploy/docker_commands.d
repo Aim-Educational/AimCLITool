@@ -46,7 +46,10 @@ final class AimDeployDockerMemoryCommand : DockerDeployBaseCommand
         if(this.limit == "0b")
             this.limit = null;
 
-        super.deployConfig.value.docker.memoryLimit = this.limit;
+        super.deployConfig.edit((scope ref conf)
+        {
+            conf.docker.memoryLimit = this.limit;
+        });
         return 0;
     }
 }

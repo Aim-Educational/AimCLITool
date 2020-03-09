@@ -79,6 +79,7 @@ final class DockerDeployHandler : IDeployHandler
 
         Shell.executeEnforceStatusZero("docker pull " ~ this.getDockerPullString());
         Shell.execute("docker stop "~this.getContainerName());
+        Shell.execute("docker rm "~this.getContainerName());
         Shell.executeEnforceStatusZero(
             "docker run"
            ~" --name="~this.getContainerName
