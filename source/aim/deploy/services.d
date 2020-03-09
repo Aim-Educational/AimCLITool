@@ -113,9 +113,11 @@ final class DockerDeployHandler : IDeployHandler
 
     private string getContainerName()
     {
-        import std.uni : toLower;
+        import std.uni   : toLower;
+        import std.array : replace;
 
-        return "aim-cli-"~this._deployConf.value.docker.imageName.toLower();
+        // e.g. aim-cli-v0.1.2-bradley-chatha-dev
+        return "aim-cli-"~this._deployConf.value.docker.imageName.toLower()~"-"~this._deployConf.value.domain.replace('.', '-').toLower();
     }
 
     private string getEnvironmentLines()

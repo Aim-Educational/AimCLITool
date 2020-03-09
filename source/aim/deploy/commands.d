@@ -41,10 +41,6 @@ final class AimDeployInit : BaseCommand
                     this.getDockerFromUserInput(conf.docker);
                     break;
             }
-
-            // TODO: Add a getInput variant that allows selecting a value from a given list.
-            //       For now, we'll just assume that they want to always trigger from a github deployment.
-            this.getGithubDeployFromUserInput(conf.triggerOnGithubDeployment);
         });
     }
 
@@ -55,13 +51,6 @@ final class AimDeployInit : BaseCommand
         conf.loginUrl        = this.getNonNullStringInput("Login url: ");
         conf.username        = this.getNonNullStringInput("Docker username: ");
         conf.passwordOrToken = this.getNonNullStringInput("Docker token: ");
-    }
-
-    private void getGithubDeployFromUserInput(scope ref AimDeployGithubDeploymentTrigger conf)
-    {
-        conf.deployToken = this.getNonNullStringInput("Deploy Token: ");
-        conf.repoOwner   = this.getNonNullStringInput("Repo Owner: ");
-        conf.repoName    = this.getNonNullStringInput("Repo Name: ");
     }
 
     private string getNonNullStringInput(string prompt)
@@ -84,9 +73,6 @@ final class AimDeployTrigger : BaseCommand
     private IDeployHandlerFactory _factory;
     private IAimDeployAddonFactory _addonFactory;
     private IAimCliConfig!AimDeployConfig _deployConf;
-
-    @CommandNamedArg("f|force", "Forces a deployment, even if the current one is up to date.")
-    Nullable!bool force;
 
     this(IDeployHandlerFactory factory, IAimCliConfig!AimDeployConfig deployConf, IAimDeployAddonFactory addonFactory)
     {
@@ -159,5 +145,92 @@ final class AimDeployUse : BaseCommand
         });
 
         return 0;
+    }
+}
+
+@Command("deploy trigger on", "Adds a new trigger into the project.")
+final class AimDeployTriggerOn : BaseCommand
+{
+    private IAimDeployTriggerFactory      _triggerFactory;
+    private IAimCliConfig!AimDeployConfig _deployConf;
+
+    @CommandPositionalArg(0, "Trigger", "The name of the trigger to add. <values: GithubDeployment>")
+    string trigger;
+
+    this(IAimDeployTriggerFactory factory, IAimCliConfig!AimDeployConfig deployConf)
+    {
+        this._triggerFactory = factory;
+        this._deployConf     = deployConf;
+    }
+
+    override int onExecute()
+    {
+        import std.algorithm : canFind;
+        import std.conv      : to;
+
+        super.onExecute();
+
+        AimDeployTriggers trigger;
+
+        try trigger = this.trigger.to!AimDeployTriggers();
+        catch(Exception ex) throw new Exception("Value '"~this.trigger~"' is not a valid trigger.");
+
+        this._deployConf.edit((scope ref conf)
+        {
+            if(!conf.triggers.canFind(trigger))
+            {
+                auto instance = this._triggerFactory.getTriggerForType(trigger);
+                instance.onAddedToProject();
+                conf.triggers ~= trigger;
+            }
+        });
+
+        return 0;
+    }
+}
+
+@Command("deploy trigger check", "Checks all triggers to see if a deployment should occur.")
+final class AimDeployTriggerCheck : BaseCommand
+{
+    private IAimDeployTriggerFactory      _triggerFactory;
+    private IAimCliConfig!AimDeployConfig _deployConf;
+    private ICommandLineInterface         _cli;
+
+    this(IAimDeployTriggerFactory factory, IAimCliConfig!AimDeployConfig deployConf, ICommandLineInterface cli)
+    {
+        this._triggerFactory = factory;
+        this._deployConf     = deployConf;
+        this._cli            = cli;
+    }
+
+    override int onExecute()
+    {
+        import std.algorithm : map, filter;
+        import std.array     : array;
+
+        super.onExecute();
+
+        auto successfulTriggers = this._deployConf
+                                      .value
+                                      .triggers
+                                      .map!((t)
+                                      {
+                                          Shell.verboseLogfln("Checking trigger %s", t);
+                                          return this._triggerFactory.getTriggerForType(t);
+                                      })
+                                      .filter!((t) 
+                                      {
+                                          auto shouldTrigger = t.shouldTriggerDeploy();
+                                          Shell.verboseLogfln(shouldTrigger ? "Trigger successful" : "Trigger failed");
+                                          return shouldTrigger;
+                                      })
+                                      .array;
+
+        auto status = this._cli.parseAndExecute(["deploy", "trigger"], IgnoreFirstArg.no);
+
+        foreach(trigger; successfulTriggers)
+            trigger.onPostDeploy(status == 0);
+
+        return status;
     }
 }

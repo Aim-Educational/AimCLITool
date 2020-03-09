@@ -2,7 +2,7 @@ module aim.deploy.data;
 
 private
 {
-    import aim.common, aim.deploy.addons;
+    import aim.common, aim.deploy.addons, aim.deploy.triggers;
 }
 
 struct AimDeployDockerSource
@@ -16,13 +16,6 @@ struct AimDeployDockerSource
     string memoryLimit;
 }
 
-struct AimDeployGithubDeploymentTrigger
-{
-    string deployToken;
-    string repoOwner;
-    string repoName;
-}
-
 struct AimDeployConfig
 {
     static const CONF_FILE = PATH(DIR_GIT_IGNORE, "deploy_config.json");
@@ -33,14 +26,20 @@ struct AimDeployConfig
         Docker   
     }
 
+    enum Triggers
+    {
+        ERROR,
+        GithubDeployment
+    }
+
     string name;
     string domain;
     ushort port;
     Type   projectType;
 
-    AimDeployAddons[]                addons;
-    AimDeployDockerSource            docker;
-    AimDeployGithubDeploymentTrigger triggerOnGithubDeployment;
+    AimDeployAddons[]     addons;
+    AimDeployTriggers[]   triggers;
+    AimDeployDockerSource docker; // Technically this should get the addon and trigger treatment, but I'm probably not going to add another source type anytime soon.
 
     void enforceHasBeenInit()
     {

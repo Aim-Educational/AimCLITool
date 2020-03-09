@@ -13,6 +13,7 @@ int main(string[] args)
 		ServiceInfo.asSingleton!(IFileDownloader, FileDownloader),
         ServiceInfo.asScoped!(IDeployHandlerFactory, DeployHandlerFactory),
         ServiceInfo.asScoped!(IAimDeployAddonFactory, AimDeployAddonFactory),
+        ServiceInfo.asScoped!(IAimDeployTriggerFactory, AimDeployTriggerFactory),
         addCommandLineInterfaceService()
     ]);
 
