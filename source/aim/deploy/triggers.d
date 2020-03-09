@@ -130,6 +130,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
     {
         import vibe.http.client;
 
+        Shell.verboseLogfln("Updating deployment status");
         auto response = requestHTTP(
             "https://api.github.com/repos/"~this._githubConf.value.repoOwner
            ~"/"~this._githubConf.value.repoName
@@ -140,6 +141,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
             {
                 req.method = HTTPMethod.POST;
                 req.headers["Accept"] = "application/vnd.github.flash-preview+json";
+                req.headers["Authorization"] = "bearer "~this._githubConf.value.deployToken;
                 req.writeJsonBody(
                 [
                     "state":        success ? "success" : "failure",
