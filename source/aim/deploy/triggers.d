@@ -96,6 +96,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         import vibe.data.json;
         import vibe.http.client;
 
+        // Find a deployment that's in the right environment, state, and isn't older than our last deployment.
         Shell.verboseLogfln("Sending GraphQL query to Github");
         auto response = requestHTTP(
             "https://api.github.com/graphql",
@@ -118,8 +119,8 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
 
         auto nodes = response["data"]["repository"]["deployments"]["nodes"];
         auto firstPendingProduction = nodes.byValue
-                                           .filter!(v => v["environment"].to!string == "production" 
-                                                      && v["state"].to!string       == "PENDING"
+                                           .filter!(v => v["environment"].to!string == "production" // TODO: This should be a config option.
+                                                      && v["state"].to!string       == "PENDING"    // TODO: Arguably this too, but it's less important.
                                                       && SysTime.fromISOExtString(v["createdAt"].to!string()) <  this._githubConf.value.lastDeploymentTime
                                            );
 
@@ -129,14 +130,18 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
             this._githubConf.edit((scope ref conf){conf.deploymentId = null;});
             return false;
         }
-        Shell.verboseLogfln("Pending deployment found, id: %s", firstPendingProduction.front["databaseId"].to!string());
+
+        const deployment = firstPendingProduction.front;
+        const databaseId = deployment["databaseId"].to!string();
+        Shell.verboseLogfln("Pending deployment found, id: %s", databaseId);
 
         this._githubConf.edit((scope ref conf)
         {
-            conf.deploymentId       = firstPendingProduction.front["databaseId"].to!string();
-            conf.lastDeploymentTime = SysTime.fromISOExtString(firstPendingProduction.front["createdAt"].to!string());   
+            conf.deploymentId       = databaseId; // So onPostDeploy knows what ID to use.
+            conf.lastDeploymentTime = SysTime.fromISOExtString(deployment["createdAt"].to!string());   
         });
 
+        // Find the ref, as that's being used as the image tag.
         Shell.verboseLogfln("Finding deployment ref");
         response = requestHTTP(
             this.getDeploymentUrl(),
@@ -151,6 +156,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         auto gitRef = response["ref"].to!string();
         Shell.verboseLogfln("Ref: %s", gitRef);
 
+        // Try to match "refs/[anything]/([anything, except we want to capture this part]) and use that as the image tag, otherwise use the entire ref.
         auto match = matchFirst(gitRef, REF_REGEX);
         auto matchedRef = (!match.empty) ? match.captures[1] : gitRef;
         Shell.verboseLogfln("Ref(Regexed): %s", matchedRef);
