@@ -5,7 +5,7 @@ $END
 $FINISH_CONFIG
 server {
     listen        80;
-    server_name   https://$DOMAIN;
+    server_name   $DOMAIN;
     location / {
         proxy_pass         http://localhost:$PORT;
         proxy_http_version 1.1;
