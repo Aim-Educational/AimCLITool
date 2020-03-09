@@ -72,6 +72,7 @@ final class DockerDeployHandler : IDeployHandler
             "docker login"
            ~" -u "~this._deployConf.value.docker.username
            ~" -p "~this._deployConf.value.docker.passwordOrToken
+           ~(this._deployConf.value.docker.memoryLimit is null ? "" : " -m "~this._deployConf.value.docker.memoryLimit)
            ~" "~this._deployConf.value.docker.loginUrl
         );
 

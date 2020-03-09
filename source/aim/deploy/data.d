@@ -13,6 +13,7 @@ struct AimDeployDockerSource
     string username;
     string passwordOrToken;
     string loginUrl;
+    string memoryLimit;
 }
 
 struct AimDeployGithubDeploymentTrigger
