@@ -44,7 +44,7 @@ interface IAimDeployTrigger
 
 final class GithubAimDeployTrigger : IAimDeployTrigger
 {
-    private AimCliConfig!Config _githubConf;
+    private static immutable REF_REGEX = `refs/.+/(.+)`;
     private static immutable GRAPHQL_GET_DEPLOYMENTS = `
     query($owner:String!, $name:String!) { 
         repository(name:$name,owner:$owner) {
@@ -58,6 +58,9 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         }
     }`;
 
+    private AimCliConfig!Config           _githubConf;
+    private IAimCliConfig!AimDeployConfig _deployConf;
+
     static struct Config
     {
         string deployToken;
@@ -66,8 +69,9 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         string deploymentId;
     }
 
-    this()
+    this(IAimCliConfig!AimDeployConfig deployConf)
     {
+        this._deployConf = deployConf;
         this._githubConf = new AimCliConfig!Config();
         this._githubConf.loadFromFile(PATH(DIR_GIT_IGNORE, "trigger_github_deployment.json"));
     }
@@ -85,6 +89,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
     override bool shouldTriggerDeploy()
     {
         import std.algorithm : filter;
+        import std.regex : matchFirst;
         import vibe.data.json;
         import vibe.http.client;
 
@@ -123,6 +128,29 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
             conf.deploymentId = firstPendingProduction.front["databaseId"].to!string();            
         });
 
+        Shell.verboseLogfln("Finding deployment ref");
+        response = requestHTTP(
+            this.getDeploymentUrl(),
+            (scope req)
+            {
+                req.method = HTTPMethod.GET;
+                req.headers["Authorization"] = "bearer "~this._githubConf.value.deployToken;
+            }
+        ).readJson();
+        Shell.verboseLogfln("Response: %s", response.toPrettyString());
+
+        auto gitRef = response["ref"].to!string();
+        Shell.verboseLogfln("Ref: %s", gitRef);
+
+        auto match = matchFirst(gitRef, REF_REGEX);
+        auto matchedRef = (!match.empty) ? match.captures[1] : gitRef;
+        Shell.verboseLogfln("Ref(Regexed): %s", matchedRef);
+
+        this._deployConf.edit((scope ref conf)
+        {
+            conf.docker.tagInUse = matchedRef;
+        });
+
         return true;
     }
 
@@ -132,10 +160,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
 
         Shell.verboseLogfln("Updating deployment status");
         auto response = requestHTTP(
-            "https://api.github.com/repos/"~this._githubConf.value.repoOwner
-           ~"/"~this._githubConf.value.repoName
-           ~"/deployments/"
-           ~this._githubConf.value.deploymentId
+            this.getDeploymentUrl()
            ~"/statuses",
             (scope req)
             {
@@ -151,5 +176,16 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
             }
         ).readJson();
         Shell.verboseLogfln("Response: %s", response.toPrettyString());
+    }
+
+    private string getDeploymentUrl()
+    {
+        return 
+            "https://api.github.com"
+           ~"/repos"
+           ~"/"~this._githubConf.value.repoOwner
+           ~"/"~this._githubConf.value.repoName
+           ~"/deployments"
+           ~"/"~this._githubConf.value.deploymentId;
     }
 }
