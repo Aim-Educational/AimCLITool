@@ -67,7 +67,7 @@ final class DockerDeployHandler : IDeployHandler
         // So we don't leak the login deets
         auto verbose = Shell.useVerboseOutput;
         Shell.useVerboseOutput = false;
-        scope(exit) Shell.useVerboseOutput = verbose;
+        scope(exit) Shell.useVerboseOutput = verbose; // In case the command below fails.
         Shell.executeEnforceStatusZero(
             "docker login"
            ~" -u "~this._deployConf.value.docker.username
@@ -75,6 +75,7 @@ final class DockerDeployHandler : IDeployHandler
            ~(this._deployConf.value.docker.memoryLimit is null ? "" : " -m "~this._deployConf.value.docker.memoryLimit)
            ~" "~this._deployConf.value.docker.loginUrl
         );
+        Shell.useVerboseOutput = verbose;
 
         Shell.executeEnforceStatusZero("docker pull " ~ this.getDockerPullString());
         Shell.execute("docker stop "~this.getContainerName());
