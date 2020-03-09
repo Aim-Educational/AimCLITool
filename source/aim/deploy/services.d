@@ -116,8 +116,8 @@ final class DockerDeployHandler : IDeployHandler
         import std.uni   : toLower;
         import std.array : replace;
 
-        // e.g. aim-cli-v0.1.2-bradley-chatha-dev
-        return "aim-cli-"~this._deployConf.value.docker.imageName.toLower()~"-"~this._deployConf.value.domain.replace('.', '-').toLower();
+        // e.g. aim-cli-bradley-chatha-dev
+        return "aim-cli-"~this._deployConf.value.domain.replace('.', '-').toLower();
     }
 
     private string getEnvironmentLines()
