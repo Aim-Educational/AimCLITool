@@ -65,7 +65,7 @@ final class DockerDeployHandler : IDeployHandler
         Shell.enforceCommandExists("docker");
 
         // So we don't leak the login deets
-        auto verbose = Shell.useVerboseOutput;
+        const verbose = Shell.useVerboseOutput;
         Shell.useVerboseOutput = false;
         scope(exit) Shell.useVerboseOutput = verbose; // In case the command below fails.
         Shell.executeEnforceStatusZero(
