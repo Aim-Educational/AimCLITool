@@ -6,7 +6,7 @@
 		"botan-math": "1.0.3",
 		"diet-ng": "1.6.1",
 		"eventcore": "0.8.48",
-		"jcli": "0.1.0-beta.9",
+		"jcli": "0.2.1",
 		"jioc": "0.2.0",
 		"libasync": "0.8.6",
 		"libevent": "2.0.2+2.0.16",
