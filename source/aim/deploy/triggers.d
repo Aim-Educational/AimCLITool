@@ -146,10 +146,13 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         auto matchedRef = (!match.empty) ? match.captures[1] : gitRef;
         Shell.verboseLogfln("Ref(Regexed): %s", matchedRef);
 
-        this._deployConf.edit((scope ref conf)
+        if(this._deployConf.value.projectType == AimDeployConfig.Type.Docker)
         {
-            conf.docker.tagInUse = matchedRef;
-        });
+            this._deployConf.edit((scope ref conf)
+            {
+                conf.docker.tagInUse = matchedRef;
+            });
+        }
 
         return true;
     }
