@@ -72,7 +72,6 @@ final class DockerDeployHandler : IDeployHandler
             "docker login"
            ~" -u "~this._deployConf.value.docker.username
            ~" -p "~this._deployConf.value.docker.passwordOrToken
-           ~(this._deployConf.value.docker.memoryLimit is null ? "" : " -m "~this._deployConf.value.docker.memoryLimit)
            ~" "~this._deployConf.value.docker.loginUrl
         );
         Shell.useVerboseOutput = verbose;
@@ -85,6 +84,7 @@ final class DockerDeployHandler : IDeployHandler
            ~" --name="~this.getContainerName
            ~" --restart=always"
            ~" -p 127.0.0.1:"~this._deployConf.value.port.to!string~":80"
+           ~(this._deployConf.value.docker.memoryLimit is null ? "" : " -m "~this._deployConf.value.docker.memoryLimit)
            ~this.getEnvironmentLines()
            ~" -d "
            ~this.getDockerPullString()
