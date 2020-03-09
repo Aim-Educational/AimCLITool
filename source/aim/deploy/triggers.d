@@ -119,6 +119,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         if(firstPendingProduction.empty)
         {
             Shell.verboseLogfln("No pending deployments found");
+            this._githubConf.edit((scope ref conf){conf.deploymentId = null;});
             return false;
         }
         Shell.verboseLogfln("Pending deployment found, id: %s", firstPendingProduction.front["databaseId"].to!string());
