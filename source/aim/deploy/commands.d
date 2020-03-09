@@ -226,7 +226,11 @@ final class AimDeployTriggerCheck : BaseCommand
                                       })
                                       .array;
 
-        auto status = this._cli.parseAndExecute(["deploy", "trigger"], IgnoreFirstArg.no);
+        int status;               
+        if(successfulTriggers.length > 0)
+            status = this._cli.parseAndExecute(["deploy", "trigger"], IgnoreFirstArg.no);
+        else
+            Shell.verboseLogfln("No triggers were successful");
 
         foreach(trigger; successfulTriggers)
             trigger.onPostDeploy(status == 0);
