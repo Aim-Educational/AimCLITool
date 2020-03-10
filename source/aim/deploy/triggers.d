@@ -69,7 +69,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         string repoOwner;
         string repoName;
         string deploymentId;
-        SysTime lastDeploymentTime; // The create_at time of the last deployment used. Used so we don't deploy older verisons by mistake.
+        string lastDeploymentTime; // The create_at time of the last deployment used. Used so we don't deploy older verisons by mistake.
     }
 
     this(IAimCliConfig!AimDeployConfig deployConf)
@@ -80,8 +80,8 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
 
         this._githubConf.edit((scope ref conf)
         {
-            if(conf.lastDeploymentTime.isAD)
-                conf.lastDeploymentTime = Clock.currTime();
+            if(conf.lastDeploymentTime.length == 0)
+                conf.lastDeploymentTime = Clock.currTime.toISOString();
         });
     }
 
@@ -98,7 +98,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
     override bool shouldTriggerDeploy()
     {
         import std.algorithm : filter;
-        import std.regex : matchFirst;
+        import std.regex     : matchFirst;
         import vibe.data.json;
         import vibe.http.client;
 
@@ -123,11 +123,12 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         ).readJson();
         Shell.verboseLogfln("Response: %s", response.toPrettyString());
 
+        auto lastDeployTime = SysTime.fromISOString(this._githubConf.value.lastDeploymentTime);
         auto nodes = response["data"]["repository"]["deployments"]["nodes"];
         auto firstPendingProduction = nodes.byValue
                                            .filter!(v => v["environment"].to!string == "production" // TODO: This should be a config option.
                                                       && v["state"].to!string       == "PENDING"    // TODO: Arguably this too, but it's less important.
-                                                      && SysTime.fromISOExtString(v["createdAt"].to!string()) <  this._githubConf.value.lastDeploymentTime
+                                                      && SysTime.fromISOExtString(v["createdAt"].to!string()) < lastDeployTime
                                            );
 
         if(firstPendingProduction.empty)
@@ -144,7 +145,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         this._githubConf.edit((scope ref conf)
         {
             conf.deploymentId       = databaseId; // So onPostDeploy knows what ID to use.
-            conf.lastDeploymentTime = SysTime.fromISOExtString(deployment["createdAt"].to!string());   
+            conf.lastDeploymentTime = deployment["createdAt"].to!string();
         });
 
         // Find the ref, as that's being used as the image tag.
