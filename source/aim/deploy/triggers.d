@@ -128,7 +128,7 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         auto firstPendingProduction = nodes.byValue
                                            .filter!(v => v["environment"].to!string == "production" // TODO: This should be a config option.
                                                       && v["state"].to!string       == "PENDING"    // TODO: Arguably this too, but it's less important.
-                                                      && SysTime.fromISOExtString(v["createdAt"].to!string()) < lastDeployTime
+                                                      && SysTime.fromISOExtString(v["createdAt"].to!string()) > lastDeployTime
                                            );
 
         if(firstPendingProduction.empty)
