@@ -23,7 +23,8 @@ int main(string[] args)
 	auto core = new CommandLineInterface!(
 		aim.secrets.commands,
 		aim.deploy.commands,
-        aim.deploy.docker_commands
+        aim.deploy.docker_commands,
+        aim.deploy.daemon
 	)(provider);
 
 	return core.parseAndExecute(args);
