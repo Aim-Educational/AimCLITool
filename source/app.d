@@ -24,7 +24,7 @@ int main(string[] args)
 		aim.secrets.commands,
 		aim.deploy.commands,
         aim.deploy.docker_commands,
-        aim.daemon
+        aim.daemon.commands
 	)(provider);
 
 	return core.parseAndExecute(args);
