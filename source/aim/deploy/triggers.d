@@ -121,7 +121,6 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
                 ]);
             }
         ).readJson();
-        Shell.verboseLogfln("Response: %s", response.toPrettyString());
 
         auto lastDeployTime = SysTime.fromISOExtString(this._githubConf.value.lastDeploymentTime);
         auto nodes = response["data"]["repository"]["deployments"]["nodes"];
@@ -158,7 +157,6 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
                 req.headers["Authorization"] = "bearer "~this._githubConf.value.deployToken;
             }
         ).readJson();
-        Shell.verboseLogfln("Response: %s", response.toPrettyString());
 
         auto gitRef = response["ref"].to!string();
         Shell.verboseLogfln("Ref: %s", gitRef);
@@ -200,7 +198,6 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
                 ]);
             }
         ).readJson();
-        Shell.verboseLogfln("Response: %s", response.toPrettyString());
     }
 
     private string getDeploymentUrl()
