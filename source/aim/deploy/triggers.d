@@ -77,6 +77,12 @@ final class GithubAimDeployTrigger : IAimDeployTrigger
         this._deployConf = deployConf;
         this._githubConf = new AimCliConfig!Config();
         this._githubConf.loadFromFile(PATH(DIR_GIT_IGNORE, "trigger_github_deployment.json"));
+
+        this._githubConf.edit((scope ref conf)
+        {
+            if(conf.lastDeploymentTime.isAD)
+                conf.lastDeploymentTime = Clock.currTime();
+        });
     }
 
     override void onAddedToProject()
