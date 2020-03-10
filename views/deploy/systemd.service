@@ -1,0 +1,14 @@
+$PLACEHOLDERS
+    $AIM_PATH
+$END
+$FINISH_CONFIG
+[Unit]
+Description=Runs AimCLITool in Daemon mode.
+
+[Service]
+Type=simple
+ExecStart=$AIM_PATH
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

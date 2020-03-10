@@ -6,6 +6,7 @@
 		"botan-math": "1.0.3",
 		"diet-ng": "1.6.1",
 		"eventcore": "0.8.48",
+		"isfreedesktop": "0.1.1",
 		"jcli": "0.2.1",
 		"jioc": "0.2.0",
 		"libasync": "0.8.6",
@@ -13,9 +14,11 @@
 		"memutils": "1.0.4",
 		"mir-linux-kernel": "1.0.1",
 		"openssl": "1.1.6+1.0.1g",
+		"standardpaths": "0.8.1",
 		"stdx-allocator": "2.77.5",
 		"taggedalgebraic": "0.11.9",
 		"vibe-core": "1.8.1",
-		"vibe-d": "0.8.6-beta.1"
+		"vibe-d": "0.8.6-beta.1",
+		"xdgpaths": "0.2.5"
 	}
 }
