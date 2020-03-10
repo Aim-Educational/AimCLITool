@@ -196,6 +196,9 @@ final class AimDeployTriggerCheck : BaseCommand
     private IAimCliConfig!AimDeployConfig _deployConf;
     private ICommandLineInterface         _cli;
 
+    @CommandNamedArg("no-post-deploy", "Don't trigger post deployments for triggers. Useful for debugging.")
+    Nullable!bool noPostDeploy;
+
     this(IAimDeployTriggerFactory factory, IAimCliConfig!AimDeployConfig deployConf, ICommandLineInterface cli)
     {
         this._triggerFactory = factory;
@@ -231,9 +234,12 @@ final class AimDeployTriggerCheck : BaseCommand
             status = this._cli.parseAndExecute(["deploy", "trigger"], IgnoreFirstArg.no);
         else
             Shell.verboseLogfln("No triggers were successful");
-
-        foreach(trigger; successfulTriggers)
-            trigger.onPostDeploy(status == 0);
+            
+        if(!this.noPostDeploy.get(false))
+        {
+            foreach(trigger; successfulTriggers)
+                trigger.onPostDeploy(status == 0);
+        }
 
         return status;
     }
