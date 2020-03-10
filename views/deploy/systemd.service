@@ -7,7 +7,7 @@ Description=Runs AimCLITool in Daemon mode.
 
 [Service]
 Type=simple
-ExecStart=$AIM_PATH
+ExecStart=$AIM_PATH daemon run -v
 Restart=always
 
 [Install]
