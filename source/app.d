@@ -2,7 +2,6 @@ import jaster.cli.core, jaster.cli.util;
 import std.algorithm : any;
 import aim.secrets, aim.common, aim.deploy, aim.daemon;
 import jaster.ioc;
-import standardpaths;
 
 int main(string[] args)
 {
@@ -11,7 +10,7 @@ int main(string[] args)
         cliConfigure!AimSecretsConfig(AimSecretsConfig.CONF_FILE),
         cliConfigure!AimSecretsDefineValues(AimSecretsDefineValues.CONF_FILE),
         cliConfigure!AimDeployConfig(AimDeployConfig.CONF_FILE),
-        cliConfigure!AimDaemonConfig(writablePath(StandardPath.config, "aimcli", FolderFlag.create)),
+        cliConfigure!AimDaemonConfig(CONFIG_PATH("aimcli", "daemon.json")),
 		ServiceInfo.asSingleton!(IFileDownloader, FileDownloader),
         ServiceInfo.asScoped!(IDeployHandlerFactory, DeployHandlerFactory),
         ServiceInfo.asScoped!(IAimDeployAddonFactory, AimDeployAddonFactory),

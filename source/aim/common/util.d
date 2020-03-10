@@ -8,6 +8,14 @@ private
 
 public import std.path : PATH = buildNormalizedPath;
 
+string CONFIG_PATH(string appName, string path)
+{
+    version(linux)
+        return PATH("/etc/", appName, path);
+    else
+        return PATH(".aim/config/", appName, path);
+}
+
 const DIR_GIT_KEEP      = ".aim/git_keep/";
 const DIR_GIT_IGNORE    = ".aim/git_ignore/";
 
